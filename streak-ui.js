@@ -24,47 +24,40 @@
     { days: 1000, emoji: '🌌', message: '1K streak. Universe-level commitment.' },
   ];
 
+  function ct() {
+    return global.CentralTime || null;
+  }
+
   function todayStr() {
-    var d = new Date();
-    return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    var c = ct();
+    return c ? c.todayStr() : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   }
 
   function calcVisitStreak(visits, asOfDate) {
+    var c = ct();
+    if (c) return c.calcStreakFromDates(visits, asOfDate || todayStr());
     var set = {};
     (visits || []).forEach(function (d) {
       if (d) set[d] = true;
     });
-    if (!Object.keys(set).length) return 0;
     var streak = 0;
-    var cur = new Date((asOfDate || todayStr()) + 'T00:00:00');
-    while (true) {
-      var ds = cur.toISOString().slice(0, 10);
-      if (set[ds]) {
-        streak++;
-        cur.setDate(cur.getDate() - 1);
-      } else break;
+    var cur = asOfDate || todayStr();
+    while (set[cur]) {
+      streak += 1;
+      cur = c ? c.addDays(cur, -1) : cur;
+      if (!c) break;
     }
     return streak;
   }
 
   function calcSubmissionStreak(entries, asOfDate) {
     var map = entries || {};
-    var set = {};
+    var dates = [];
     Object.keys(map).forEach(function (d) {
       var e = map[d];
-      if (e && (e.submittedAt || (e.pairs && e.pairs.length))) set[d] = true;
+      if (e && (e.submittedAt || (e.pairs && e.pairs.length))) dates.push(d);
     });
-    if (!Object.keys(set).length) return 0;
-    var streak = 0;
-    var cur = new Date((asOfDate || todayStr()) + 'T00:00:00');
-    while (true) {
-      var ds = cur.toISOString().slice(0, 10);
-      if (set[ds]) {
-        streak++;
-        cur.setDate(cur.getDate() - 1);
-      } else break;
-    }
-    return streak;
+    return calcVisitStreak(dates, asOfDate);
   }
 
   function getStreakMilestone(streak) {

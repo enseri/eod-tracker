@@ -708,7 +708,7 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   </a>
   <span class="tier-badge basic" id="tier-badge">Basic</span>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-  <div class="streak-badge" id="streak-badge-wrap" title="Consecutive days you've opened the app">
+  <div class="streak-badge" id="streak-badge-wrap" title="Consecutive Central Time days you've opened the app">
     <span class="streak-emoji" id="streak-emoji" aria-hidden="true">✨</span>
     <span class="streak-num" id="streak-count">0</span>
     <span class="streak-lbl">Day streak</span>
@@ -726,7 +726,7 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 <div class="settings-panel" id="settings-panel">
   <div id="settings-streak-section">
   <p class="set-title">Streak notifications</p>
-  <p class="set-desc">When enabled, streak milestone messages are sent to accountability chat when you hit a milestone. Your day streak counts consecutive days you open the app.</p>
+  <p class="set-desc">When enabled, streak milestone messages are sent to accountability chat when you hit a milestone. Day streaks use US Central Time (CST/CDT) — open the app once per Central calendar day.</p>
   <label class="settings-check"><input type="checkbox" id="settings-streak-notifs" checked/> Send streak milestone notifications</label>
   </div>
   <hr class="set-divider"/>
@@ -826,9 +826,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/streak-ui.js?v=2.4.1"></script>
-<script src="/history-ui.js?v=2.4.1"></script>
-<script src="/personal-bests-ui.js?v=2.4.1"></script>
+<script src="/central-time.js?v=2.4.2"></script>
+<script src="/streak-ui.js?v=2.4.2"></script>
+<script src="/history-ui.js?v=2.4.2"></script>
+<script src="/personal-bests-ui.js?v=2.4.2"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -1146,7 +1147,7 @@ function renderTierUI(){
   if(tabProgress)tabProgress.style.display=isPro?'':'none';
 }
 
-function todayStr(){var d=new Date();return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function todayStr(){return window.CentralTime?CentralTime.todayStr():new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});}
 function fmtDate(ds){
   if(!ds)return '';
   return new Date(ds+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
@@ -1245,7 +1246,7 @@ function updateVisitStreakUI(asOfDate){
   if(countEl)countEl.textContent=streak;
   if(emojiEl)emojiEl.textContent=EodStreak.streakEmoji(streak);
   if(hintEl){
-    if(!streak){hintEl.textContent='Open the app daily to build your streak';}
+    if(!streak){hintEl.textContent='Open the app daily (Central Time) to build your streak';}
     else{
       var next=EodStreak.getNextStreakMilestone(streak);
       hintEl.textContent=next?(next.days-streak)+' to '+next.emoji+' '+next.days:'Top tier 🌌';
