@@ -1,10 +1,23 @@
 const { getAdminFromRequest } = require('../../lib/auth');
-const { readStore, setAdminTier, deleteUser } = require('../../lib/store');
+const { setAdminTier, deleteUser, readStore } = require('../../lib/store');
 const { summarizeUser } = require('../../lib/analytics');
 const { clampSettingsForTier } = require('../../lib/tiers');
 const { parseJsonBody } = require('../../lib/parse-body');
 const { resolveWhopUsername, pickDisplayUsername } = require('../../lib/whop-username-sync');
-const { enrichUsersWithWhopNames } = require('../../lib/whop-usernames');
+
+async function summaryForUser(companyId, userId, record, store) {
+  let summary = summarizeUser(userId, record, store);
+  if (userId.startsWith('user_')) {
+    const whopName = await resolveWhopUsername(userId, companyId, {
+      storedUsername: record.username,
+    });
+    summary = {
+      ...summary,
+      username: pickDisplayUsername(userId, record.username, whopName),
+    };
+  }
+  return summary;
+}
 
 module.exports = async function handler(req, res) {
   try {
@@ -39,17 +52,16 @@ module.exports = async function handler(req, res) {
       }
 
       const result = await setAdminTier(companyId, targetId, tier);
-      const store = await readStore(companyId);
-      const usersForSummary = await enrichUsersWithWhopNames(store.users, companyId);
-      const record = usersForSummary[targetId];
+      const store = result.store || { users: { [targetId]: result.user }, proUserIds: result.proUserIds };
+      const summary = await summaryForUser(companyId, targetId, result.user, store);
 
       res.status(200).json({
         ok: true,
         tier,
         companyId,
-        onProList: (result.proUserIds || []).includes(targetId),
+        onProList: summary.tier === 'pro',
         proUserIds: result.proUserIds,
-        summary: summarizeUser(targetId, record, store),
+        summary,
       });
       return;
     }
@@ -65,23 +77,13 @@ module.exports = async function handler(req, res) {
     }
 
     const store = await readStore(companyId);
-    const usersForSummary = await enrichUsersWithWhopNames(store.users, companyId);
-    const record = usersForSummary[userId];
+    const record = store.users[userId];
     if (!record) {
       res.status(404).json({ error: 'Member not found — they need to submit an EOD first' });
       return;
     }
 
-    let summary = summarizeUser(userId, record, store);
-    if (userId.startsWith('user_')) {
-      const whopName = await resolveWhopUsername(userId, companyId, {
-        storedUsername: record.username,
-      });
-      summary = {
-        ...summary,
-        username: pickDisplayUsername(userId, record.username, whopName),
-      };
-    }
+    const summary = await summaryForUser(companyId, userId, record, store);
 
     res.status(200).json({
       summary,
@@ -89,7 +91,7 @@ module.exports = async function handler(req, res) {
       entries: record.entries || {},
       visits: record.visits || [],
       settings: clampSettingsForTier(record.settings, summary.tier),
-      onProList: summary.onProList,
+      onProList: summary.tier === 'pro',
       proUserIds: store.proUserIds || [],
     });
   } catch (err) {

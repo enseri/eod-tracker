@@ -394,7 +394,7 @@ th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
 <div class="version-label" id="version-label">v…</div>
 <script src="/history-ui.js?v=2.3.1"></script>
 <script>
-var allUsers=[],selectedUserId=null,selectedForDelete={},dashboardBusy=false,refreshTimer=null;
+var allUsers=[],selectedUserId=null,selectedForDelete={},dashboardBusy=false,refreshTimer=null,tierSaveInFlight=false;
 
 function isLocalDev(){
   var h=window.location.hostname;
@@ -605,8 +605,9 @@ function buildAdminHistoryDayBodyHtml(e,ds,isProTier){
   });
   if(isProTier&&streams.length){
     streams.forEach(function(st,i){
+      if(!showI)return;
       var sn=(st.name||'Stream '+(i+1)).trim();
-      html+='<div class="history-metric"><span>'+esc(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>'+(showI?'$'+Number(st.income||0).toLocaleString():'hidden')+'</em></div>';
+      html+='<div class="history-metric"><span>'+esc(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>$'+Number(st.income||0).toLocaleString()+'</em></div>';
     });
   }
   html+='</div>';
@@ -616,8 +617,6 @@ function buildAdminHistoryDayBodyHtml(e,ds,isProTier){
     html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text">'+esc(preview2)+'</div>';
     if(refl.length>80)html+='<button type="button" class="history-reflection-btn" data-date="'+esc(ds)+'" data-text="'+esc(refl)+'">Read full reflection</button>';
     html+='</div>';
-  }else if(e.publish&&e.hideEod){
-    html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text" style="color:var(--text3);">Hidden for channel publish</div></div>';
   }
   return html;
 }
@@ -754,22 +753,72 @@ async function deleteMemberData(userId,username,btn){
   }
 }
 
-async function saveUserTier(userId,tier){
-  var statusEl=document.getElementById('tier-status');
-  statusEl.textContent='Saving...';statusEl.style.color='var(--text2)';
-  var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
-    method:'PATCH',
-    credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({userId:userId,tier:tier})
+function recalcStatsFromUsers(){
+  if(!allUsers.length){
+    renderStats({members:0,activeToday:0,avgStreak:0,missedLast7:0,proMembers:0});
+    return;
+  }
+  renderStats({
+    members:allUsers.length,
+    activeToday:allUsers.filter(function(u){return u.activeToday;}).length,
+    avgStreak:Math.round(allUsers.reduce(function(s,u){return s+(u.streak||0);},0)/allUsers.length),
+    missedLast7:allUsers.reduce(function(s,u){return s+(u.missedLast7||0);},0),
+    proMembers:allUsers.filter(function(u){return u.tier==='pro';}).length
   });
-  var parsed=await readJsonResponse(res);
-  var data=parsed.data;
-  if(!parsed.ok)throw new Error(data.error||'Failed to save tier');
-  statusEl.textContent='Saved — '+userId+' is now '+tier.toUpperCase()+(data.onProList?' (on Pro list)':'');
-  statusEl.style.color='var(--success)';
-  await loadDashboard();
-  await loadUserDetail(userId);
+}
+
+function patchUserInList(summary){
+  if(!summary||!summary.userId)return;
+  var i=allUsers.findIndex(function(u){return u.userId===summary.userId;});
+  if(i>=0)allUsers[i]=summary;
+  else allUsers.push(summary);
+  recalcStatsFromUsers();
+  renderUsers();
+}
+
+function updateTierDetailPanel(data){
+  if(!data||!data.summary)return;
+  var s=data.summary;
+  var sel=document.getElementById('tier-select');
+  if(sel){
+    sel.value=s.tier==='pro'?'pro':'basic';
+  }
+  var items=document.querySelectorAll('#detail-panel .detail-item strong');
+  if(items[0])items[0].textContent=s.tier==='pro'?'Pro':'Basic';
+  if(items[1])items[1].textContent=data.onProList?'Yes':'No';
+  var note=document.querySelector('#detail-panel .tier-note');
+  if(note){
+    note.textContent=data.onProList?'This member is on the Pro list — they get income tracking and multiple action/KPI pairs.':'Not on the Pro list — Basic features only.';
+  }
+}
+
+async function saveUserTier(userId,tier){
+  if(tierSaveInFlight)return;
+  tierSaveInFlight=true;
+  var statusEl=document.getElementById('tier-status');
+  var btn=document.getElementById('tier-save-btn');
+  if(statusEl){statusEl.textContent='Saving…';statusEl.style.color='var(--text2)';}
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
+      method:'PATCH',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:userId,tier:tier})
+    });
+    var parsed=await readJsonResponse(res);
+    var data=parsed.data;
+    if(!parsed.ok)throw new Error(data.error||'Failed to save tier');
+    if(statusEl){
+      statusEl.textContent='Saved — '+userId+' is now '+tier.toUpperCase()+(data.onProList?' (on Pro list)':'');
+      statusEl.style.color='var(--success)';
+    }
+    if(data.summary)patchUserInList(data.summary);
+    updateTierDetailPanel(data);
+  }finally{
+    tierSaveInFlight=false;
+    if(btn){btn.disabled=false;btn.textContent='Save tier';}
+  }
 }
 
 async function loadUserDetail(userId){
@@ -830,6 +879,7 @@ async function loadUserDetail(userId){
 async function loadDashboard(opts){
   opts=opts||{};
   if(dashboardBusy&&!opts.force)return;
+  if(tierSaveInFlight&&!opts.force)return;
   dashboardBusy=true;
   var wrap=document.querySelector('.table-wrap');
   var btn=document.getElementById('btn-refresh');

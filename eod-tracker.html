@@ -150,6 +150,52 @@ body{
 .streak-milestone-toast.visible{display:block;opacity:1;transform:translateX(-50%) translateY(0);}
 .streak-milestone-toast .sm-emoji{font-size:28px;margin-bottom:6px;}
 .streak-milestone-toast .sm-msg{font-size:13px;color:var(--text);line-height:1.45;font-weight:600;}
+.pb-celebration-toast{
+  display:none;position:fixed;left:50%;bottom:96px;
+  z-index:9001;max-width:min(92vw,360px);padding:16px 20px;border-radius:var(--radius);
+  background:linear-gradient(135deg,rgba(30,21,53,0.98),rgba(45,32,72,0.98));
+  border:1px solid rgba(245,200,66,0.55);
+  box-shadow:0 12px 40px rgba(0,0,0,0.5),0 0 32px rgba(245,200,66,0.2);
+  text-align:center;opacity:0;transform:translateX(-50%) translateY(16px) scale(0.92);
+  pointer-events:none;overflow:hidden;
+}
+.pb-celebration-toast.visible{
+  display:block;
+  animation:pb-toast-in 0.55s cubic-bezier(0.34,1.4,0.64,1) forwards;
+}
+.pb-celebration-burst{
+  position:absolute;inset:-40%;border-radius:50%;
+  background:radial-gradient(circle,rgba(245,200,66,0.35) 0%,transparent 70%);
+  animation:pb-burst 0.7s ease-out forwards;pointer-events:none;
+}
+.pb-celebration-emoji{
+  position:relative;font-size:32px;line-height:1;margin-bottom:8px;
+  animation:pb-trophy-bounce 0.65s ease 0.05s both;
+}
+.pb-celebration-title{
+  position:relative;font-size:14px;font-weight:800;color:var(--gold);margin-bottom:6px;
+}
+.pb-celebration-list{
+  position:relative;font-size:12px;color:var(--text2);line-height:1.5;
+}
+.pb-celebration-list div{margin-top:2px;}
+.streak-badge.pb-pulse{animation:pb-badge-pop 0.6s ease;}
+@keyframes pb-toast-in{
+  to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+}
+@keyframes pb-burst{
+  0%{opacity:0.85;transform:scale(0.3);}
+  100%{opacity:0;transform:scale(1.4);}
+}
+@keyframes pb-trophy-bounce{
+  0%{transform:scale(0.4) rotate(-12deg);opacity:0;}
+  55%{transform:scale(1.15) rotate(4deg);opacity:1;}
+  100%{transform:scale(1) rotate(0);}
+}
+@keyframes pb-badge-pop{
+  0%,100%{transform:scale(1);}
+  45%{transform:scale(1.1);box-shadow:0 0 24px rgba(245,200,66,0.55);}
+}
 .tier-badge{
   display:inline-flex;align-items:center;gap:6px;
   border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;
@@ -157,14 +203,6 @@ body{
 }
 .tier-badge.pro{border-color:var(--gold);color:var(--gold);background:rgba(245,200,66,0.08);}
 .tier-badge.basic{color:var(--text2);}
-.upgrade-banner{
-  display:none;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);
-  border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;
-}
-.upgrade-banner p{font-size:13px;color:var(--text2);line-height:1.5;}
-.upgrade-banner strong{color:var(--gold);}
-.upgrade-banner.upgrade-flash{animation:upgradePulse 1.2s ease 2;}
-@keyframes upgradePulse{0%,100%{box-shadow:none;}50%{box-shadow:0 0 0 2px rgba(245,200,66,0.45);}}
 .session-error{
   display:none;margin-bottom:16px;padding:12px 14px;border-radius:var(--radius-sm);
   background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);
@@ -266,13 +304,29 @@ body{
 
 /* inputs */
 input[type=text],input[type=number],input[type=date],select,textarea{
-  width:100%;padding:9px 12px;
+  width:100%;max-width:100%;padding:9px 12px;box-sizing:border-box;
   background:var(--card2);
   border:1px solid var(--border2);
   border-radius:var(--radius-sm);
   color:var(--text);font-size:14px;font-family:inherit;outline:none;
   transition:border-color 0.15s;
   appearance:auto;-webkit-appearance:auto;
+  min-width:0;
+}
+.date-field-wrap{
+  width:100%;max-width:100%;overflow:hidden;box-sizing:border-box;
+}
+input[type=date]{
+  display:block;
+  -webkit-appearance:none;
+  appearance:none;
+  min-height:40px;
+}
+input[type=date]::-webkit-date-and-time-value{
+  min-width:0;text-align:left;
+}
+input[type=date]::-webkit-calendar-picker-indicator{
+  margin-left:4px;cursor:pointer;opacity:0.75;
 }
 input::placeholder,textarea::placeholder{color:var(--text3);}
 input:focus,select:focus,textarea:focus{border-color:var(--gold);}
@@ -386,10 +440,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 .history-bar-col--action .history-bar-val{color:var(--success);}
 .history-preview-footer{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
-  min-height:14px;line-height:1;
+  min-height:14px;line-height:1;min-width:0;overflow:hidden;
 }
-.history-preview-date{font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;}
-.history-preview-income{font-size:10px;font-weight:700;color:var(--gold);white-space:nowrap;margin-left:auto;}
+.history-preview-date{font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;}
+.history-preview-income{font-size:10px;font-weight:700;color:var(--gold);white-space:nowrap;margin-left:auto;flex:0 0 auto;}
 .history-bar-track{background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;}
 .history-bar-fill{height:100%;border-radius:999px;min-width:2px;}
 .history-bar-fill--kpi{background:var(--gold);}
@@ -590,9 +644,28 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 .chart-zoom-hint{font-size:10px;color:var(--text3);margin-right:auto;}
 .chart-svg-slot{cursor:crosshair;touch-action:none;}
 
+.progress-pb-section{
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--border);
+}
+.progress-pb-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;}
+.progress-pb-table{
+  width:100%;border-collapse:collapse;font-size:12px;
+}
+.progress-pb-table th,.progress-pb-table td{
+  padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);
+}
+.progress-pb-table th{
+  font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);
+}
+.progress-pb-table td:last-child{font-weight:700;color:var(--gold);white-space:nowrap;}
+.progress-pb-table tbody tr:last-child td{border-bottom:none;}
+.progress-pb-empty{font-size:12px;color:var(--text3);padding:8px 4px 4px;}
+
 @media(max-width:500px){
   .grid2{grid-template-columns:1fr;}
   .income-grid{flex-direction:column;}
+  input[type=date]{font-size:16px;padding:10px 12px;}
+  .card{padding:16px 14px;}
 }
 </style>
 </head>
@@ -600,8 +673,8 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Loading VIP EOD Tracker">
   <div class="app-splash-inner">
     <div class="app-splash-mark" aria-hidden="true">✦</div>
-    <h1 class="app-splash-brand">Astro Seri</h1>
-    <p class="app-splash-tagline">VIP EOD Tracker</p>
+    <h1 class="app-splash-brand">VIP</h1>
+    <p class="app-splash-tagline">EOD Tracker</p>
     <p class="app-splash-status" id="app-splash-status">Loading membership…</p>
     <div class="app-splash-loader" aria-hidden="true"></div>
   </div>
@@ -638,9 +711,6 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   </div>
 </div>
 
-<div class="upgrade-banner" id="upgrade-banner">
-  <p><strong>Pro feature.</strong> Upgrade to Pro for sales & income tracking, multiple action/KPI pairs, and saved action/KPI options.</p>
-</div>
 <div class="session-error" id="session-error"></div>
 
 <div class="settings-panel" id="settings-panel">
@@ -680,7 +750,9 @@ button:hover{border-color:var(--gold);color:var(--gold);}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg>
       <span class="card-title">Date</span>
     </div>
-    <input type="date" id="f-date"/>
+    <div class="date-field-wrap">
+      <input type="date" id="f-date"/>
+    </div>
     <div id="eod-date-notice" class="eod-date-notice" role="status" aria-live="polite"></div>
   </div>
   <div id="pairs-container"></div>
@@ -731,8 +803,15 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="sm-emoji"></div>
   <div class="sm-msg"></div>
 </div>
-<script src="/streak-ui.js?v=2.3.1"></script>
-<script src="/history-ui.js?v=2.3.1"></script>
+<div class="pb-celebration-toast" id="pb-celebration-toast" role="status" aria-live="polite">
+  <div class="pb-celebration-burst" aria-hidden="true"></div>
+  <div class="pb-celebration-emoji" aria-hidden="true">🏆</div>
+  <div class="pb-celebration-title">New personal best!</div>
+  <div class="pb-celebration-list" id="pb-celebration-list"></div>
+</div>
+<script src="/streak-ui.js?v=2.3.9"></script>
+<script src="/history-ui.js?v=2.3.9"></script>
+<script src="/personal-bests-ui.js?v=2.3.9"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -751,6 +830,7 @@ var pairCount=1,optionLists={},incomeStreams=[{id:'default',name:'Sales and inco
 var chartStateStore={},CHART_DEFAULT_DAYS=30;
 var userTier='basic',userId=null,whopCompanyId=null,isPro=false,userProfile=null,isSubmitting=false;
 var SUBMIT_COOLDOWN_SEC=10,submitCooldownUntil=0,submitCooldownInterval=null,submitBtnDefaultHtml='';
+var submitReplacePending=null;
 
 function isProTier(t){return t==='pro';}
 function canSaveOptions(){return isPro;}
@@ -1017,7 +1097,6 @@ function applyTierLimits(){
 
 function renderTierUI(){
   var badge=document.getElementById('tier-badge');
-  var upgrade=document.getElementById('upgrade-banner');
   var incomeSection=document.getElementById('settings-income-section');
   var incomeDivider=document.getElementById('settings-income-divider');
   var pairsNote=document.getElementById('pairs-pro-note');
@@ -1028,7 +1107,6 @@ function renderTierUI(){
     badge.textContent=isPro?'Pro':'Basic';
     badge.className='tier-badge '+(isPro?'pro':'basic');
   }
-  if(upgrade)upgrade.style.display=isPro?'none':'block';
   if(incomeSection)incomeSection.style.display=isPro?'':'none';
   if(incomeDivider)incomeDivider.style.display=isPro?'':'none';
   if(pairsNote)pairsNote.style.display=isPro?'none':'inline';
@@ -1077,14 +1155,6 @@ function showProFeatureGate(featureLabel){
   overlay.appendChild(box);
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
-  var banner=document.getElementById('upgrade-banner');
-  if(banner&&!isPro){
-    banner.style.display='block';
-    banner.classList.remove('upgrade-flash');
-    void banner.offsetWidth;
-    banner.classList.add('upgrade-flash');
-    banner.scrollIntoView({behavior:'smooth',block:'nearest'});
-  }
 }
 
 /* options stored as [{name,target}] */
@@ -1147,6 +1217,35 @@ function showMilestoneToast(milestone){
   el.querySelector('.sm-msg').textContent=milestone.message;
   el.classList.add('visible');
   setTimeout(function(){el.classList.remove('visible');},5500);
+}
+
+function pbRecordLabel(r){
+  if(r.type==='action')return 'Action: '+r.name;
+  if(r.type==='kpi')return 'KPI: '+r.name;
+  if(r.type==='sales')return 'Sales: '+r.name;
+  if(r.type==='income')return 'Income: '+r.name;
+  return r.name||'';
+}
+
+function showPersonalBestToast(records){
+  if(!records||!records.length)return;
+  var el=document.getElementById('pb-celebration-toast');
+  var listEl=document.getElementById('pb-celebration-list');
+  if(!el||!listEl)return;
+  var titleEl=el.querySelector('.pb-celebration-title');
+  if(titleEl)titleEl.textContent=records.length>1?'New personal bests!':'New personal best!';
+  listEl.innerHTML=records.map(function(r){return '<div>'+escH(pbRecordLabel(r))+'</div>';}).join('');
+  el.classList.remove('visible');
+  void el.offsetWidth;
+  el.classList.add('visible');
+  var badge=document.getElementById('streak-badge-wrap');
+  if(badge){
+    badge.classList.remove('pb-pulse');
+    void badge.offsetWidth;
+    badge.classList.add('pb-pulse');
+    setTimeout(function(){badge.classList.remove('pb-pulse');},650);
+  }
+  setTimeout(function(){el.classList.remove('visible');},4800);
 }
 
 function recordVisit(){
@@ -1217,27 +1316,11 @@ function bindPair(i){
   var kS=gc('f-kpi-select',i),kNR=gc('f-kpi-new-row',i),kN=gc('f-kpi-new',i),kE=gc('f-kpi-edit-btn',i),kC=gc('f-kpi-create-btn',i),kSt=gc('f-kpi-status',i);
   renderSel(aS,aNR,aE,getOpts('action',i),null);
   renderSel(kS,kNR,kE,getOpts('kpi',i),null);
-  var lastActionSel=aS.style.display!=='none'&&aS.value!==ADD_NEW?aS.value:'';
-  var lastKpiSel=kS.style.display!=='none'&&kS.value!==ADD_NEW?kS.value:'';
   aS.onchange=function(){
-    if(!canSaveOptions()&&aS.value===ADD_NEW){
-      showProFeatureGate('Saved action options');
-      aS.value=lastActionSel||normOpts(getOpts('action',i))[0].name;
-      applyVis(aS,aNR,aE);
-      return;
-    }
-    if(aS.value!==ADD_NEW)lastActionSel=aS.value;
     applyVis(aS,aNR,aE);
     updateHint('action',i,aS.value);
   };
   kS.onchange=function(){
-    if(!canSaveOptions()&&kS.value===ADD_NEW){
-      showProFeatureGate('Saved KPI options');
-      kS.value=lastKpiSel||normOpts(getOpts('kpi',i))[0].name;
-      applyVis(kS,kNR,kE);
-      return;
-    }
-    if(kS.value!==ADD_NEW)lastKpiSel=kS.value;
     applyVis(kS,kNR,kE);
     updateHint('kpi',i,kS.value);
   };
@@ -1253,16 +1336,15 @@ function bindPair(i){
 
 function renderSel(sel,newRow,editBtn,list,selected){
   list=normOpts(list);
-  if(list.length===0&&!canSaveOptions()){
-    sel.innerHTML='<option value="">Type below for this entry</option><option value="'+ADD_NEW+'">+ Add new option</option>';
-    sel.style.display='';
+  if(list.length===0){
+    sel.innerHTML='';
+    sel.style.display='none';
     editBtn.style.display='none';
     newRow.style.display='flex';
-    sel.value='';
     return;
   }
-  if(list.length===0){sel.innerHTML='';sel.style.display='none';editBtn.style.display='none';newRow.style.display='flex';return;}
-  sel.innerHTML=list.map(function(o){return'<option value="'+escA(o.name)+'">'+escH(o.name)+'</option>';}).join('')+'<option value="'+ADD_NEW+'">+ Add new option</option>';
+  var addOpt=canSaveOptions()?'<option value="'+ADD_NEW+'">+ Add new option</option>':'';
+  sel.innerHTML=list.map(function(o){return'<option value="'+escA(o.name)+'">'+escH(o.name)+'</option>';}).join('')+addOpt;
   sel.style.display='';
   var names=list.map(function(o){return o.name;});
   sel.value=(selected&&names.includes(selected))?selected:list[list.length-1].name;
@@ -1273,7 +1355,7 @@ function applyVis(sel,newRow,editBtn){
   if(sel.style.display==='none'){newRow.style.display='flex';editBtn.style.display='none';return;}
   var n=sel.value===ADD_NEW;
   newRow.style.display=n?'flex':'none';
-  editBtn.style.display=(n||!canSaveOptions())?'none':'';
+  editBtn.style.display=n?'none':'';
 }
 
 function doCreate(type,i,sel,inp,newRow,editBtn,statusEl){
@@ -1290,7 +1372,6 @@ function doCreate(type,i,sel,inp,newRow,editBtn,statusEl){
 }
 
 function openEditModal(type,i,sel,newRow,editBtn){
-  if(!canSaveOptions()){showProFeatureGate('Editing saved '+(type==='action'?'action':'KPI')+' options');return;}
   var list=normOpts(getOpts(type,i));
   if(!list.length){alert('No saved options to edit yet.');return;}
   var label=type==='action'?'action':'KPI';
@@ -1462,22 +1543,21 @@ function entryExistsForDate(date){
 
 function updateOverrideNotice(){
   var notice=document.getElementById('eod-override-notice');
-  var dateEl=document.getElementById('f-date');
-  if(!notice||!dateEl)return;
-  var date=dateEl.value;
+  if(!notice)return;
   notice.className='eod-date-notice eod-override-notice';
-  if(date&&entryExistsForDate(date)){
-    notice.className+=' is-visible eod-date-notice--override';
-    notice.innerHTML='<strong>Heads up:</strong> An EOD entry already exists for <strong>'+escH(fmtDate(date))+'</strong>. Submitting will replace the previous entry for this date.';
-  }
 }
 
 function updateDateEntryNotice(){
+  var dateEl=document.getElementById('f-date');
+  if(!dateEl)return;
+  var date=dateEl.value;
+  if(submitReplacePending&&submitReplacePending!==date){
+    clearSubmitReplacePending();
+    updateSubmitButton();
+  }
   updateOverrideNotice();
   var notice=document.getElementById('eod-date-notice');
-  var dateEl=document.getElementById('f-date');
-  if(!notice||!dateEl)return;
-  var date=dateEl.value;
+  if(!notice)return;
   notice.className='eod-date-notice';
   if(!date){
     notice.className+=' is-visible eod-date-notice--empty';
@@ -1507,6 +1587,10 @@ function tickSubmitCooldown(){
     submitCooldownUntil=0;
     try{sessionStorage.removeItem(STORAGE_PREFIX+'eod_submit_cooldown');}catch(e){}
     btn.innerHTML=submitBtnDefaultHtml;
+    updateSubmitButton();
+    return;
+  }
+  if(submitReplacePending){
     updateSubmitButton();
     return;
   }
@@ -1617,11 +1701,21 @@ function validateForm(){
   return true;
 }
 
+function clearSubmitReplacePending(){
+  submitReplacePending=null;
+}
+
 function updateSubmitButton(){
   var btn=document.getElementById('btn-submit');
   if(!btn)return;
   if(isSubmitOnCooldown()){
     btn.disabled=true;
+    return;
+  }
+  var date=document.getElementById('f-date').value;
+  if(submitReplacePending&&date===submitReplacePending){
+    btn.disabled=false;
+    btn.textContent='Press again to replace entry';
     return;
   }
   btn.disabled=!validateForm()||isSubmitting;
@@ -1637,7 +1731,13 @@ async function submitEntry(){
     return;
   }
   if(entryExistsForDate(date)){
-    if(!window.confirm('An EOD entry already exists for '+fmtDate(date)+'. Submitting will replace it. Continue?'))return;
+    if(submitReplacePending!==date){
+      submitReplacePending=date;
+      updateSubmitButton();
+      statusEl.textContent='An entry exists for '+fmtDate(date)+'. Press the button again to replace it.';
+      statusEl.style.color='var(--gold)';
+      return;
+    }
   }
   isSubmitting=true;
   updateSubmitButton();
@@ -1659,6 +1759,7 @@ async function submitEntry(){
       kpiTarget:getTargetForName('kpi',i,f.kpi)
     });
   }
+  submitReplacePending=null;
   var entry={
     pairs:pairs,
     incomeStreams:isPro?readIncomeFromDOM():[],
@@ -1668,7 +1769,9 @@ async function submitEntry(){
     hideIncome:isPro?document.getElementById('f-hide-income').checked:false,
     submittedAt:new Date().toISOString()
   };
-  var all=LS.get(ENTRIES_KEY)||{};all[date]=entry;
+  var all=LS.get(ENTRIES_KEY)||{};
+  var previousEntry=all[date]||null;
+  all[date]=entry;
   if(canSaveOptions()){
     for(var i=0;i<pairCount;i++){
       var p=pairs[i];
@@ -1695,9 +1798,17 @@ async function submitEntry(){
     statusEl.textContent='Saved — entry for '+fmtDate(date)+' recorded.'+syncNote;
     statusEl.style.color='var(--success)';
     updateSubmissionStreakUI(date);
+    if(window.PersonalBests){
+      var pbHits=PersonalBests.detectNewRecords(entry,all,date,isPro,previousEntry);
+      if(pbHits.length)showPersonalBestToast(pbHits);
+    }
     if(entry.publish){
       if(syncResult&&syncResult.channel&&syncResult.channel.ok){
         statusEl.textContent+=' Posted to accountability chat.';
+        var pb=syncResult.channel.personalBests;
+        if(pb&&pb.ok&&pb.records&&pb.records.length){
+          statusEl.textContent+=' Personal best'+(pb.records.length>1?'s':'')+' shared in chat.';
+        }
         if(syncResult.channel.milestone)showMilestoneToast(syncResult.channel.milestone);
       }else if(syncResult&&syncResult.channel&&!syncResult.channel.skipped){
         statusEl.textContent+=' Chat post failed — set WHOP_ACCOUNTABILITY_WEBHOOK_URL in Vercel.';
@@ -1708,6 +1819,10 @@ async function submitEntry(){
       if(hit)showMilestoneToast(hit);
     }
     startSubmitCooldown();
+    renderHistory();
+    if(isPro&&document.getElementById('panel-progress')&&document.getElementById('panel-progress').style.display!=='none'){
+      renderProgress();
+    }
     clearForm();
   }else{
     statusEl.textContent='Save failed.';statusEl.style.color='var(--danger)';
@@ -2156,14 +2271,29 @@ function bindProgressMetricSelectors(all,dates){
   refreshKpi();
 }
 
+function renderPersonalBestsTableHtml(all){
+  if(!window.PersonalBests)return '';
+  var rows=PersonalBests.buildRows(all,isPro);
+  if(!rows.length){
+    return '<div class="progress-pb-section"><p class="progress-pb-title">Personal bests</p><p class="progress-pb-empty">No personal bests yet — keep submitting EODs.</p></div>';
+  }
+  var html='<div class="progress-pb-section"><p class="progress-pb-title">Personal bests</p>'
+    +'<table class="progress-pb-table"><thead><tr><th>Type</th><th>Metric</th><th>Best</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html+='<tr><td>'+escH(r.type)+'</td><td>'+escH(r.name)+'</td><td>'+escH(PersonalBests.formatBest(r))+'</td></tr>';
+  });
+  return html+'</tbody></table></div>';
+}
+
 function renderProgress(){
   var wrap=document.getElementById('progress-charts-wrap');
   if(!wrap)return;
   chartStateStore={};
   if(!isPro){wrap.innerHTML='<p class="progress-empty">Progress charts are available on Pro.</p>';return;}
   var all=LS.get(ENTRIES_KEY)||{},dates=Object.keys(all).sort();
+  var pbHtml=renderPersonalBestsTableHtml(all);
   if(dates.length<2){
-    wrap.innerHTML='<p class="progress-empty">Submit at least 2 EOD entries to see progress charts.</p>';
+    wrap.innerHTML='<p class="progress-empty">Submit at least 2 EOD entries to see progress charts.</p>'+pbHtml;
     return;
   }
   var html='';
@@ -2209,7 +2339,7 @@ function renderProgress(){
     +'<div class="progress-chart-body" id="progress-sales-chart"></div>'
     +chartLegend()+'</div>';
 
-  wrap.innerHTML=html;
+  wrap.innerHTML=html+pbHtml;
   bindProgressMetricSelectors(all,dates);
   bindProgressStreamSelector(all,dates);
 }
@@ -2246,8 +2376,9 @@ function buildHistoryDayBodyHtml(e,ds){
   });
   if(isPro&&streams.length){
     streams.forEach(function(st,i){
+      if(!showI)return;
       var sn=(st.name||(incomeStreams[i]&&incomeStreams[i].name)||'Stream '+(i+1)).trim();
-      html+='<div class="history-metric"><span>'+escH(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>'+(showI?'$'+Number(st.income||0).toLocaleString():'hidden')+'</em></div>';
+      html+='<div class="history-metric"><span>'+escH(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>$'+Number(st.income||0).toLocaleString()+'</em></div>';
     });
   }
   html+='</div>';
@@ -2257,8 +2388,6 @@ function buildHistoryDayBodyHtml(e,ds){
     html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text">'+escH(preview)+'</div>';
     if(refl.length>80)html+='<button type="button" class="history-reflection-btn" data-date="'+escA(fmtDate(ds))+'" data-text="'+escA(refl)+'">Read full reflection</button>';
     html+='</div>';
-  }else if(e.publish&&e.hideEod){
-    html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text" style="color:var(--text3);">Hidden for channel publish</div></div>';
   }
   html+='<div class="history-day-actions"><button type="button" class="history-day-delete-btn" data-date="'+escA(ds)+'">Delete EOD</button></div>';
   return html;

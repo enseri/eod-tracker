@@ -81,6 +81,7 @@ module.exports = async function handler(req, res) {
       };
 
       const merged = { ...(existing.entries || {}) };
+      const previousEntry = date && existing?.entries?.[date] ? existing.entries[date] : null;
 
       if (bulkEntries && typeof bulkEntries === 'object') {
         Object.keys(bulkEntries).forEach((d) => {
@@ -126,6 +127,7 @@ module.exports = async function handler(req, res) {
           username: resolvedUsername,
           entries: updated.entries,
           isPro: isProTier(resolvedTier),
+          previousEntry,
         });
         submissionStreak = channel.streak ?? submissionStreak;
       }
