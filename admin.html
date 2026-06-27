@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="color-scheme" content="dark"/>
+<title>Admin — VIP Implementation Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f0a1e;--card:#1e1535;--card2:#251c3d;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.13);
+  --text:#f0ecff;--text2:#9b8fc0;--text3:#6b5f8a;--gold:#f5c842;--danger:#f87171;--success:#a78bfa;
+  --radius:12px;--radius-sm:8px;
+}
+html,body{min-height:100%;overflow-x:hidden;background-color:var(--bg);}
+html::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(ellipse 110% 70% at 80% -8%, rgba(80,30,120,0.38) 0%, transparent 58%),
+    radial-gradient(ellipse 95% 65% at 10% 108%, rgba(50,20,90,0.32) 0%, transparent 55%);
+  background-repeat:no-repeat;
+}
+body{
+  font-family:'Inter',system-ui,sans-serif;color:var(--text);
+  background:transparent;
+}
+.app{max-width:1100px;margin:0 auto;padding:24px 16px 48px;}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+h1{font-size:20px;font-weight:800;}
+.sub{font-size:12px;color:var(--text3);margin-top:4px;}
+.badge{display:inline-flex;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--border2);color:var(--text2);}
+.badge.admin{border-color:var(--gold);color:var(--gold);background:rgba(245,200,66,0.08);}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.view-switch-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 12px;
+  font-size:12px;font-weight:600;color:var(--text);
+  background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  cursor:pointer;text-decoration:none;white-space:nowrap;
+}
+.view-switch-btn:hover{border-color:var(--gold);color:var(--gold);}
+.view-switch-btn svg{flex-shrink:0;}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.stat{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;}
+.stat-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;color:var(--gold);}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+input,select,button{font-family:inherit;}
+input[type=text],select{
+  padding:9px 12px;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);font-size:14px;outline:none;
+}
+input:focus,select:focus{border-color:var(--gold);}
+button{
+  padding:9px 14px;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);font-size:14px;cursor:pointer;
+}
+button:hover{border-color:var(--gold);color:var(--gold);}
+.btn-primary{background:var(--gold);color:#1a1030;border-color:var(--gold);font-weight:700;}
+.btn-danger{background:transparent;border-color:var(--danger);color:var(--danger);}
+.btn-danger:hover{background:rgba(248,113,113,0.1);border-color:var(--danger);color:#fecaca;}
+.danger-zone{
+  margin-top:16px;padding:14px;border-radius:var(--radius-sm);
+  border:1px solid rgba(248,113,113,0.25);background:rgba(248,113,113,0.05);
+}
+.danger-zone label{display:block;font-size:11px;color:var(--danger);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.danger-note{font-size:12px;color:var(--text3);margin-top:8px;line-height:1.4;}
+.layout{display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px;min-height:520px;}
+.card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;}
+.card-hd{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;}
+.table-wrap{max-height:520px;overflow:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
+th{position:sticky;top:0;background:var(--card2);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+tr{cursor:pointer;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+tr.active td{background:rgba(245,200,66,0.06);}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+.pill.pro{color:var(--gold);background:rgba(245,200,66,0.1);}
+.pill.basic{color:var(--text2);background:rgba(255,255,255,0.05);}
+.status{font-size:13px;color:var(--text2);padding:16px;}
+.status.error{color:var(--danger);}
+.detail{padding:16px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.detail-item{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.detail-item span{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.detail-item strong{font-size:15px;}
+.tier-controls{
+  background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:14px;margin-bottom:16px;
+}
+.tier-controls label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.tier-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.tier-row select{min-width:120px;}
+.tier-note{font-size:12px;color:var(--text3);margin-top:8px;line-height:1.4;}
+.tier-status{font-size:12px;min-height:16px;margin-top:8px;color:var(--success);}
+.history-mini{max-height:480px;overflow-y:auto;padding:8px 4px 16px;}
+.history-deck-hint{font-size:11px;color:var(--text3);text-align:center;margin-bottom:10px;letter-spacing:.02em;}
+.history-load-more{
+  display:block;width:calc(100% - 8px);margin:12px auto 4px;padding:10px 16px;
+  font-size:12px;font-weight:600;font-family:inherit;
+  color:var(--gold);background:rgba(245,200,66,0.08);
+  border:1px solid rgba(245,200,66,0.25);border-radius:var(--radius-sm);
+  cursor:pointer;transition:background 0.15s ease;
+}
+.history-load-more:hover{background:rgba(245,200,66,0.14);}
+.history-deck{
+  --deck-peek:64px;--deck-collapsed-h:70px;
+  position:relative;padding-bottom:8px;
+}
+.history-deck-controls{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:12px;padding:0 4px;}
+.history-ctrl{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.history-ctrl select{padding:6px 10px;font-size:12px;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);}
+.history-day-preview{
+  display:grid;grid-template-rows:auto auto;gap:5px;
+  width:100%;box-sizing:border-box;
+  transition:opacity 0.15s ease;
+}
+.history-day:not(.expanded) .history-day-preview{display:grid;}
+.history-day.expanded .history-day-preview{display:none;}
+.history-preview-bars{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;
+}
+.history-bar-col{display:flex;flex-direction:column;gap:3px;min-width:0;width:100%;}
+.history-bar-col--kpi{align-items:flex-start;}
+.history-bar-col--action{align-items:flex-end;}
+.history-preview-bars .history-bar-track{height:8px;width:100%;}
+.history-bar-col--action .history-bar-track{align-self:stretch;}
+.history-bar-val{font-size:9px;font-weight:600;color:var(--text2);line-height:1;white-space:nowrap;}
+.history-bar-col--kpi .history-bar-val{color:var(--gold);}
+.history-bar-col--action .history-bar-val{color:var(--success);}
+.history-preview-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:14px;line-height:1;
+}
+.history-preview-date{font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;}
+.history-preview-income{font-size:10px;font-weight:700;color:var(--gold);white-space:nowrap;margin-left:auto;}
+.history-bar-track{background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;}
+.history-bar-fill{height:100%;border-radius:999px;min-width:2px;}
+.history-bar-fill--kpi{background:var(--gold);}
+.history-bar-fill--action{background:var(--success);}
+.history-day:not(.expanded):hover .history-preview-bars,
+.history-day:not(.expanded):hover .history-preview-income,
+.history-day:not(.expanded):hover .history-bar-val{opacity:0.4;}
+.history-day:not(.expanded):hover .history-preview-date{opacity:0;}
+.bulk-bar{
+  display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 16px;border-bottom:1px solid var(--border);background:var(--card2);
+}
+.bulk-bar.visible{display:flex;}
+.bulk-bar label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;cursor:pointer;}
+.bulk-count{font-size:12px;color:var(--text3);}
+th.chk-col,td.chk-col{width:36px;text-align:center;}
+td.chk-col input{accent-color:var(--gold);cursor:pointer;}
+tr.selected td{background:rgba(245,200,66,0.04);}
+th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
+.btn-row-delete{
+  padding:4px 10px;font-size:11px;font-weight:600;
+  border-color:rgba(248,113,113,0.45);color:var(--danger);background:transparent;
+}
+.btn-row-delete:hover{background:rgba(248,113,113,0.12);border-color:var(--danger);color:#fecaca;}
+.btn-row-delete:disabled{opacity:0.5;cursor:not-allowed;}
+.card-hd-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.table-wrap.refreshing{opacity:0.55;pointer-events:none;transition:opacity 0.15s;}
+#btn-refresh.refreshing{opacity:0.6;}
+.history-day{
+  position:relative;
+  border:1px solid transparent;
+  border-radius:var(--radius-sm);
+  background:
+    linear-gradient(var(--card2), var(--card2)) padding-box,
+    linear-gradient(135deg, rgba(245,200,66,0.32) 0%, rgba(139,92,246,0.24) 52%, rgba(155,143,192,0.16) 100%) border-box;
+  padding:12px 14px;
+  cursor:pointer;
+  box-shadow:
+    0 2px 10px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  transition:transform 0.2s ease,box-shadow 0.2s ease,margin 0.25s ease,background 0.2s ease;
+  z-index:calc(120 - var(--stack-i,0));
+}
+.history-deck .history-day+.history-day{margin-top:calc(var(--deck-peek) - var(--deck-collapsed-h));}
+.history-deck .history-day:first-child{margin-top:0;}
+.history-day:not(.expanded){
+  max-height:var(--deck-collapsed-h);overflow:hidden;
+  padding:4px 10px 3px;
+  display:block;
+  background:
+    linear-gradient(rgba(37,28,61,1), rgba(30,21,53,1)) padding-box,
+    linear-gradient(135deg, rgba(245,200,66,0.26) 0%, rgba(139,92,246,0.2) 100%) border-box;
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.history-day:not(.expanded) .history-preview-slot{
+  width:100%;
+  min-height:calc(var(--deck-peek) - 7px);
+  max-height:none;overflow:visible;
+}
+.history-day:not(.expanded):hover{
+  transform:translateY(-3px);
+  background:
+    linear-gradient(rgba(37,28,61,1), rgba(30,21,53,1)) padding-box,
+    linear-gradient(135deg, rgba(245,200,66,0.48) 0%, rgba(167,139,250,0.38) 55%, rgba(139,92,246,0.28) 100%) border-box;
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.34),
+    0 0 0 1px rgba(245,200,66,0.08),
+    0 0 22px rgba(139,92,246,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  z-index:calc(200 - var(--stack-i,0));
+}
+.history-day.expanded{
+  max-height:none;overflow:visible;
+  z-index:300!important;
+  margin-top:12px!important;
+  margin-bottom:8px;
+  cursor:default;
+  background:
+    linear-gradient(var(--card2), var(--card2)) padding-box,
+    linear-gradient(135deg, rgba(245,200,66,0.55) 0%, rgba(167,139,250,0.4) 48%, rgba(139,92,246,0.3) 100%) border-box;
+  box-shadow:
+    0 8px 30px rgba(0,0,0,0.42),
+    0 0 0 1px rgba(245,200,66,0.12),
+    0 0 28px rgba(139,92,246,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.09);
+}
+.history-deck .history-day.expanded+.history-day{margin-top:calc(var(--deck-peek) - var(--deck-collapsed-h));}
+.history-day--missed{
+  opacity:0.72;
+  border:1px dashed rgba(155,143,192,0.38);
+  background:var(--card2);
+  box-shadow:0 2px 8px rgba(0,0,0,0.22),inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.history-day--missed:not(.expanded){min-height:var(--deck-collapsed-h);}
+.history-day--missed:not(.expanded):hover{
+  border-color:rgba(155,143,192,0.55);
+  box-shadow:0 6px 16px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.history-day--missed.expanded{
+  border:1px dashed rgba(155,143,192,0.5);
+  background:
+    linear-gradient(var(--card2), var(--card2)) padding-box,
+    linear-gradient(135deg, rgba(155,143,192,0.35), rgba(107,95,138,0.25)) border-box;
+}
+.history-day-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;min-height:18px;}
+.history-day:not(.expanded) .history-day-hd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;margin:0;z-index:3;}
+.history-day-date{font-size:13px;font-weight:700;color:var(--text);transition:opacity 0.15s ease;}
+.history-day:not(.expanded) .history-day-date{opacity:0;font-size:13px;}
+.history-day:not(.expanded):hover .history-day-date,
+.history-day.expanded .history-day-date{opacity:1;}
+@media(hover:none){
+  .history-day:not(.expanded) .history-day-date{opacity:0;}
+  .history-day:not(.expanded) .history-preview-date{opacity:1;}
+}
+.history-day:not(.expanded) .history-day-badge{display:none;}
+.history-day-body{display:block;}
+.history-day:not(.expanded) .history-day-body{display:none;}
+.history-day:not(.expanded):hover .history-day-preview{opacity:1;}
+.history-day-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+.history-day-badge.done{color:var(--gold);background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.2);}
+.history-day-badge.missed{color:var(--text3);background:rgba(255,255,255,0.03);}
+.history-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-bottom:8px;}
+.history-metric{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 9px;min-width:0;}
+.history-metric span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px;}
+.history-metric strong{display:block;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.history-metric em{font-style:normal;font-size:11px;color:var(--gold);}
+.history-reflection{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 12px;font-size:13px;line-height:1.5;color:var(--text2);
+}
+.history-reflection-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;}
+.history-reflection-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.history-reflection-btn{
+  margin-top:8px;padding:0;border:none;background:transparent;
+  color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.history-reflection-btn:hover{text-decoration:underline;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;backdrop-filter:blur(4px);}
+.modal-box{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;width:100%;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6);max-height:82vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:2px;color:var(--text);}
+.modal-sub{font-size:12px;color:var(--text2);margin-bottom:16px;}
+.modal-reflection-text{font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap;}
+.modal-btns{display:flex;gap:8px;margin-top:16px;}
+.modal-btns button{flex:1;}
+.modal-btns .btn-save{background:var(--gold);color:#1a1030;border-color:var(--gold);font-weight:700;}
+.banner{
+  display:none;margin-bottom:16px;padding:12px 14px;border-radius:var(--radius-sm);
+  background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);color:#fecaca;font-size:13px;
+}
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .layout{grid-template-columns:1fr;}
+}
+.version-label{
+  position:fixed;bottom:14px;left:16px;z-index:9999;
+  font-size:11px;font-weight:600;color:var(--text2);
+  letter-spacing:.04em;pointer-events:none;
+  text-shadow:0 1px 8px rgba(0,0,0,0.65);
+}
+.access-gate{
+  display:none;max-width:480px;margin:80px auto 0;padding:28px 24px;
+  background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);text-align:center;
+}
+.access-gate h2{font-size:18px;margin-bottom:8px;}
+.access-gate p{font-size:13px;color:var(--text2);line-height:1.5;}
+.access-gate.visible{display:block;}
+.app.locked .stats,.app.locked .toolbar,.app.locked .layout,.app.locked .banner{display:none!important;}
+.admin-user{font-size:12px;color:var(--text2);margin-top:6px;}
+.admin-user strong{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="app" id="app-root">
+  <div class="access-gate" id="access-gate">
+    <h2>Admin access required</h2>
+    <p id="access-gate-msg">Open this dashboard from your Whop business as a team member. Preview as admin in the app builder also works. Membership is verified via your Whop session — not a URL flag.</p>
+  </div>
+  <div class="topbar">
+    <div>
+      <h1>Student Progress Admin</h1>
+      <p class="sub">Track EOD submissions, streaks, missed days, and income for your Implementation Club members.</p>
+      <p class="admin-user" id="admin-user-line" style="display:none;">Signed in as <strong id="admin-username">—</strong></p>
+    </div>
+    <div class="topbar-actions">
+    <span class="badge admin" id="admin-role-badge">Admin</span>
+      <a class="view-switch-btn" id="btn-member-tracker" href="#" style="display:none;" title="Open the member EOD tracker">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Member tracker
+      </a>
+    </div>
+  </div>
+
+  <div class="banner" id="error-banner"></div>
+
+  <div class="stats" id="stats">
+    <div class="stat"><div class="stat-lbl">Members</div><div class="stat-val" id="s-members">—</div></div>
+    <div class="stat"><div class="stat-lbl">Active today</div><div class="stat-val" id="s-active">—</div></div>
+    <div class="stat"><div class="stat-lbl">Avg streak</div><div class="stat-val" id="s-streak">—</div></div>
+    <div class="stat"><div class="stat-lbl">Missed (7d)</div><div class="stat-val" id="s-missed">—</div></div>
+    <div class="stat"><div class="stat-lbl">Pro members</div><div class="stat-val" id="s-pro">—</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search by name or user id..." style="min-width:220px;flex:1;"/>
+    <select id="filter-tier">
+      <option value="all">All tiers</option>
+      <option value="pro">Pro only</option>
+      <option value="basic">Basic only</option>
+    </select>
+    <select id="filter-activity">
+      <option value="all">All activity</option>
+      <option value="active">Active today</option>
+      <option value="inactive">Not active today</option>
+      <option value="missed">Missed 3+ (7d)</option>
+    </select>
+    <button class="btn-primary" id="btn-refresh">Refresh</button>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <div class="card-hd card-hd-row"><span>Members overview</span></div>
+      <div class="bulk-bar" id="bulk-bar">
+        <label><input type="checkbox" id="bulk-select-all"/> Select all on page</label>
+        <span class="bulk-count" id="bulk-count">0 selected</span>
+        <button type="button" class="btn-danger" id="btn-bulk-delete">Delete selected</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="chk-col"><input type="checkbox" id="head-select-all" title="Select all on page"/></th>
+              <th>Member</th><th>Tier</th><th>Streak</th><th>Last EOD</th><th>Missed 7d</th><th>Entries</th><th>Income 30d</th><th class="act-col"></th>
+            </tr>
+          </thead>
+          <tbody id="users-body">
+            <tr><td colspan="9" class="status">Loading members...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd" id="detail-title">Member detail</div>
+      <div class="detail" id="detail-panel">
+        <p class="status">Select a member to view their EOD history and progress.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="version-label" id="version-label">v…</div>
+<script src="/history-ui.js?v=2.3.1"></script>
+<script>
+var allUsers=[],selectedUserId=null,selectedForDelete={},dashboardBusy=false,refreshTimer=null;
+
+function isLocalDev(){
+  var h=window.location.hostname;
+  return h==='localhost'||h==='127.0.0.1';
+}
+function getCompanyId(){
+  var m=window.location.pathname.match(/\/dashboard\/([^/?#]+)/);
+  if(m){
+    var id=decodeURIComponent(m[1]);
+    if(/^biz_|^com_/.test(id))return id;
+  }
+  var hash=window.location.hash||'';
+  m=hash.match(/\/dashboard\/([^/?#]+)/);
+  if(m){
+    var id2=decodeURIComponent(m[1]);
+    if(/^biz_|^com_/.test(id2))return id2;
+  }
+  var q=new URLSearchParams(window.location.search);
+  var fromQ=q.get('companyId')||q.get('company_id')||q.get('business_id')||q.get('biz_id');
+  if(fromQ&&/^biz_|^com_/.test(fromQ))return fromQ;
+  return null;
+}
+function getExperienceIdFromPage(){
+  var m=window.location.pathname.match(/\/experiences\/([^/?#]+)/);
+  if(m)return decodeURIComponent(m[1]);
+  var q=new URLSearchParams(window.location.search);
+  return q.get('experienceId')||q.get('experience_id')||q.get('exp')||null;
+}
+function adminApiQuery(extra){
+  var parts=[];
+  var cid=getCompanyId();
+  if(cid)parts.push('companyId='+encodeURIComponent(cid));
+  var exp=getExperienceIdFromPage();
+  if(exp)parts.push('experienceId='+encodeURIComponent(exp));
+  if(isLocalDev())parts.push('admin=1');
+  if(extra){
+    if(extra.indexOf('?')===0)extra=extra.slice(1);
+    if(extra)parts.push(extra);
+  }
+  return parts.length?'?'+parts.join('&'):'';
+}
+function apiFetch(url,opts){
+  return fetch(url,Object.assign({credentials:'same-origin'},opts||{}));
+}
+async function readJsonResponse(res){
+  var text=await res.text();
+  try{
+    return {ok:res.ok,status:res.status,data:JSON.parse(text)};
+  }catch(e){
+    var snippet=(text||'').trim().slice(0,160);
+    return {ok:false,status:res.status,data:{error:'Server error: '+(snippet||'Invalid API response')}};
+  }
+}
+function isWhopAuthError(msg){
+  if(!msg)return false;
+  return /whop/i.test(String(msg))||/WHOP_/i.test(String(msg));
+}
+function showAccessDenied(msg){
+  if(isWhopAuthError(msg))return;
+  var app=document.getElementById('app-root');
+  var gate=document.getElementById('access-gate');
+  if(msg)document.getElementById('access-gate-msg').textContent=msg;
+  app.classList.add('locked');
+  gate.classList.add('visible');
+}
+function setAdminUserLine(adminUser,meta){
+  if(!adminUser||!adminUser.username)return;
+  document.getElementById('admin-username').textContent=adminUser.username;
+  document.getElementById('admin-user-line').style.display='block';
+  var roleBadge=document.getElementById('admin-role-badge');
+  if(roleBadge){
+    roleBadge.textContent=adminUser.whopRoleLabel||'Admin';
+    roleBadge.title=adminUser.whopRole?('Whop role: '+adminUser.whopRole):'Team member';
+  }
+  var trackerBtn=document.getElementById('btn-member-tracker');
+  if(trackerBtn&&meta&&meta.trackerPath){
+    trackerBtn.href=meta.trackerPath;
+    trackerBtn.style.display='inline-flex';
+    trackerBtn.onclick=function(){
+      try{sessionStorage.setItem('eod_force_member_view','1');}catch(e){}
+    };
+  }
+}
+function esc(s){var d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
+function fmtDate(ds){if(!ds)return '—';return new Date(ds+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
+function fmtMoney(n){return '$'+Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});}
+
+function showError(msg){
+  if(isWhopAuthError(msg))return;
+  var el=document.getElementById('error-banner');
+  el.textContent=msg;el.style.display='block';
+}
+
+function filteredUsers(){
+  var q=document.getElementById('search').value.trim().toLowerCase();
+  var tier=document.getElementById('filter-tier').value;
+  var activity=document.getElementById('filter-activity').value;
+  return allUsers.filter(function(u){
+    if(tier!=='all'&&u.tier!==tier)return false;
+    if(activity==='active'&&!u.activeToday)return false;
+    if(activity==='inactive'&&u.activeToday)return false;
+    if(activity==='missed'&&u.missedLast7<3)return false;
+    if(q){
+      var hay=(u.username+' '+u.userId).toLowerCase();
+      if(hay.indexOf(q)===-1)return false;
+    }
+    return true;
+  });
+}
+
+function renderStats(totals){
+  document.getElementById('s-members').textContent=totals.members||0;
+  document.getElementById('s-active').textContent=totals.activeToday||0;
+  document.getElementById('s-streak').textContent=totals.avgStreak||0;
+  document.getElementById('s-missed').textContent=totals.missedLast7||0;
+  document.getElementById('s-pro').textContent=totals.proMembers||0;
+}
+
+function updateBulkUi(){
+  var ids=Object.keys(selectedForDelete).filter(function(k){return selectedForDelete[k];});
+  var n=ids.length;
+  var bar=document.getElementById('bulk-bar');
+  bar.classList.toggle('visible',n>0);
+  document.getElementById('bulk-count').textContent=n+' selected';
+  var rows=filteredUsers();
+  var head=document.getElementById('head-select-all');
+  var bulk=document.getElementById('bulk-select-all');
+  var allOn=rows.length>0&&rows.every(function(u){return selectedForDelete[u.userId];});
+  if(head)head.checked=allOn;
+  if(bulk)bulk.checked=allOn;
+}
+
+function renderUsers(){
+  var rows=filteredUsers();
+  var body=document.getElementById('users-body');
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="9" class="status">No members match your filters yet.</td></tr>';
+    updateBulkUi();
+    return;
+  }
+  body.innerHTML=rows.map(function(u){
+    var active=selectedUserId===u.userId?' class="active"':'';
+    var sel=selectedForDelete[u.userId]?' selected':'';
+    var checked=selectedForDelete[u.userId]?' checked':'';
+    return '<tr data-user="'+esc(u.userId)+'"'+active+sel+'>'
+      +'<td class="chk-col" onclick="event.stopPropagation()"><input type="checkbox" class="user-chk" data-user="'+esc(u.userId)+'"'+checked+'/></td>'
+      +'<td><strong>'+esc(u.username)+'</strong><div style="font-size:11px;color:var(--text3);">'+esc(u.userId)+'</div></td>'
+      +'<td><span class="pill '+u.tier+'">'+esc(u.tier==='pro'?'Pro':'Basic')+'</span></td>'
+      +'<td>'+u.streak+'</td>'
+      +'<td>'+fmtDate(u.lastEntryDate)+'</td>'
+      +'<td>'+u.missedLast7+'</td>'
+      +'<td>'+u.totalEntries+'</td>'
+      +'<td>'+fmtMoney(u.incomeLast30)+'</td>'
+      +'<td class="act-col"><button type="button" class="btn-row-delete" data-user="'+esc(u.userId)+'" data-name="'+esc(u.username)+'">Delete</button></td>'
+      +'</tr>';
+  }).join('');
+  body.querySelectorAll('tr[data-user]').forEach(function(tr){
+    tr.onclick=function(e){
+      if(e.target.closest('.chk-col')||e.target.closest('.act-col'))return;
+      loadUserDetail(tr.getAttribute('data-user'));
+    };
+  });
+  body.querySelectorAll('.user-chk').forEach(function(chk){
+    chk.onchange=function(e){
+      e.stopPropagation();
+      selectedForDelete[chk.getAttribute('data-user')]=chk.checked;
+      renderUsers();
+    };
+  });
+  body.querySelectorAll('.btn-row-delete').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      deleteMemberData(btn.getAttribute('data-user'),btn.getAttribute('data-name'),btn);
+    };
+  });
+  updateBulkUi();
+}
+
+function openReflectionModal(dateLabel,text){
+  var ex=document.getElementById('reflection-view-modal');if(ex)ex.remove();
+  var overlay=document.createElement('div');
+  overlay.id='reflection-view-modal';
+  overlay.className='modal-overlay';
+  var box=document.createElement('div');
+  box.className='modal-box';
+  box.innerHTML='<p class="modal-title">EOD reflection</p><p class="modal-sub">'+esc(dateLabel)+'</p><p class="modal-reflection-text">'+esc(text)+'</p><div class="modal-btns"><button class="btn-save" id="refl-close-btn">Close</button></div>';
+  overlay.appendChild(box);
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  box.querySelector('#refl-close-btn').onclick=function(){overlay.remove();};
+  document.body.appendChild(overlay);
+}
+
+function setDeckHeight(deck){
+  if(window.HistoryUI&&HistoryUI.setDeckHeight){HistoryUI.setDeckHeight(deck);return;}
+}
+
+function buildAdminHistoryDayBodyHtml(e,ds,isProTier){
+  var showR=!(e.publish&&e.hideEod),showI=!(e.publish&&e.hideIncome),pairs=e.pairs||[],streams=e.incomeStreams||[];
+  var html='<div class="history-metrics">';
+  pairs.forEach(function(p,idx2){
+    var n=pairs.length>1?' #'+(idx2+1):'';
+    var aCount=p.actionCount!=null?p.actionCount:0;
+    var kCount=p.kpiCount!=null?p.kpiCount:0;
+    var aDisp=p.actionTarget!=null?aCount+' / '+p.actionTarget:String(aCount);
+    var kDisp=p.kpiTarget!=null?kCount+' / '+p.kpiTarget:String(kCount);
+    html+='<div class="history-metric"><span>Action'+n+'</span><strong title="'+esc(p.action||'')+'">'+esc(p.action||'—')+'</strong><em>'+aDisp+' done</em></div>';
+    html+='<div class="history-metric"><span>KPI'+n+'</span><strong title="'+esc(p.kpi||'')+'">'+esc(p.kpi||'—')+'</strong><em>'+kDisp+' count</em></div>';
+  });
+  if(isProTier&&streams.length){
+    streams.forEach(function(st,i){
+      var sn=(st.name||'Stream '+(i+1)).trim();
+      html+='<div class="history-metric"><span>'+esc(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>'+(showI?'$'+Number(st.income||0).toLocaleString():'hidden')+'</em></div>';
+    });
+  }
+  html+='</div>';
+  if(showR&&(e.reflection||'').trim()){
+    var refl=e.reflection.trim();
+    var preview2=refl.length>120?refl.slice(0,120)+'…':refl;
+    html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text">'+esc(preview2)+'</div>';
+    if(refl.length>80)html+='<button type="button" class="history-reflection-btn" data-date="'+esc(ds)+'" data-text="'+esc(refl)+'">Read full reflection</button>';
+    html+='</div>';
+  }else if(e.publish&&e.hideEod){
+    html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text" style="color:var(--text3);">Hidden for channel publish</div></div>';
+  }
+  return html;
+}
+
+function ensureAdminHistoryDayBody(card,entriesMap,isProTier){
+  var body=card.querySelector('.history-day-body');
+  if(!body||!body.hasAttribute('data-lazy'))return;
+  var ds=card.getAttribute('data-date');
+  var e=entriesMap&&entriesMap[ds];
+  if(!e)return;
+  body.innerHTML=buildAdminHistoryDayBodyHtml(e,ds,isProTier);
+  body.removeAttribute('data-lazy');
+}
+
+function bindHistoryDeck(root,entriesMap,isPro){
+  var deck=root.querySelector('.history-deck');
+  if(!deck)return;
+  if(window.HistoryUI&&HistoryUI.resetDeckBindings)HistoryUI.resetDeckBindings(deck);
+  setDeckHeight(deck);
+  var idPrefix=root.getAttribute('data-history-prefix')||'admin-history';
+  if(window.HistoryUI){
+    HistoryUI.bindDeckControls(root,idPrefix,function(){
+      HistoryUI.refreshPreviews(root,entriesMap||{},!!isPro,idPrefix);
+    });
+    HistoryUI.bindDeckEvents(deck,{
+      onToggle:function(card){
+        var was=card.classList.contains('expanded');
+        deck.querySelectorAll('.history-day.expanded').forEach(function(c){c.classList.remove('expanded');});
+        if(!was){
+          ensureAdminHistoryDayBody(card,entriesMap,!!isPro);
+          card.classList.add('expanded');
+        }
+      },
+      onReflection:function(btn){
+        openReflectionModal(fmtDate(btn.getAttribute('data-date')),btn.getAttribute('data-text'));
+      }
+    });
+  }
+  if(window.HistoryUI&&entriesMap)HistoryUI.refreshPreviews(root,entriesMap,!!isPro,idPrefix);
+}
+
+function renderUserHistory(entries,isPro,deckLimit){
+  var dates=Object.keys(entries||{}).sort().reverse();
+  if(!dates.length)return '<p class="status">No EOD entries yet.</p>';
+  var limit=deckLimit||(window.HistoryUI?HistoryUI.DECK_PAGE_SIZE:35);
+  var visible=dates.slice(0,limit);
+  var hiddenCount=dates.length-visible.length;
+  var idPrefix='admin-history';
+  var idx=window.HistoryUI?{pairIndex:0,streamIndex:0}:null;
+  var streamNames=window.HistoryUI?HistoryUI.streamNamesFromEntries(entries):null;
+  var html='<div data-history-prefix="'+idPrefix+'" data-deck-limit="'+limit+'">';
+  if(window.HistoryUI)html+=HistoryUI.deckControlsHtml(idPrefix,entries,isPro);
+  html+='<p class="history-deck-hint">Hover for date · Click to expand</p><div class="history-deck">';
+  visible.forEach(function(ds,stackIdx){
+    var e=entries[ds];
+    var dateLabel=fmtDate(ds);
+    var preview=window.HistoryUI?HistoryUI.collapsedPreview(e,0,0,isPro,dateLabel,entries,streamNames):'';
+    html+='<div class="history-day" data-date="'+esc(ds)+'" data-date-fmt="'+esc(dateLabel)+'" style="--stack-i:'+stackIdx+'"><div class="history-day-hd"><span class="history-day-date">'+dateLabel+'</span><span class="history-day-badge done">Submitted</span></div><div class="history-preview-slot">'+preview+'</div><div class="history-day-body" data-lazy="1"></div></div>';
+  });
+  html+='</div>';
+  if(window.HistoryUI)html+=HistoryUI.loadMoreHtml(hiddenCount);
+  html+='</div>';
+  return html;
+}
+
+function bindReflectionButtons(root,entries,isPro){
+  var histWrap=root.querySelector('.history-mini');
+  if(!histWrap)return;
+  var histRoot=histWrap.querySelector('[data-history-prefix]');
+  if(histRoot)bindHistoryDeck(histRoot,entries,isPro);
+  var loadBtn=histWrap.querySelector('.history-load-more');
+  if(loadBtn){
+    loadBtn.onclick=function(){
+      var prefixEl=histWrap.querySelector('[data-history-prefix]');
+      var cur=Number(prefixEl&&prefixEl.getAttribute('data-deck-limit'))||35;
+      histWrap.innerHTML=renderUserHistory(entries,isPro,cur+Number(loadBtn.getAttribute('data-add')||30));
+      bindReflectionButtons(root,entries,isPro);
+    };
+  }
+}
+
+function clearDetailPanel(msg){
+  selectedUserId=null;
+  document.getElementById('detail-title').textContent='Member detail';
+  document.getElementById('detail-panel').innerHTML='<p class="status">'+(msg||'Select a member from the list.')+'</p>';
+}
+
+async function deleteMembersBulk(userIds){
+  if(!userIds.length)return;
+  if(!window.confirm('Delete all EOD data for '+userIds.length+' member(s)? This cannot be undone.'))return;
+  var btn=document.getElementById('btn-bulk-delete');
+  if(btn){btn.disabled=true;btn.textContent='Deleting…';}
+  try{
+    var res=await apiFetch('/api/admin/users'+adminApiQuery(),{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'delete',userIds:userIds})
+    });
+    var parsed=await readJsonResponse(res);
+    if(!parsed.ok)throw new Error(parsed.data.error||'Bulk delete failed');
+    userIds.forEach(function(id){
+      delete selectedForDelete[id];
+      allUsers=allUsers.filter(function(u){return u.userId!==id;});
+    });
+    if(userIds.indexOf(selectedUserId)>=0)clearDetailPanel('Selected members deleted.');
+    renderUsers();
+    await loadDashboard({silent:true,force:true});
+  }catch(err){
+    alert(err.message);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Delete selected';}
+  }
+}
+
+async function deleteMemberData(userId,username,btn){
+  var label=username||userId;
+  if(!window.confirm('Delete all EOD data for '+label+'? This cannot be undone.'))return;
+  if(btn){btn.disabled=true;btn.textContent='…';}
+  try{
+    var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
+      method:'DELETE',
+      credentials:'same-origin'
+    });
+    var parsed=await readJsonResponse(res);
+    if(!parsed.ok)throw new Error(parsed.data.error||'Delete failed');
+    allUsers=allUsers.filter(function(u){return u.userId!==userId;});
+    if(selectedUserId===userId)clearDetailPanel('Member deleted.');
+    renderUsers();
+    await loadDashboard({silent:true,force:true});
+  }catch(err){
+    alert(err.message);
+    if(btn){btn.disabled=false;btn.textContent='Delete';}
+  }
+}
+
+async function saveUserTier(userId,tier){
+  var statusEl=document.getElementById('tier-status');
+  statusEl.textContent='Saving...';statusEl.style.color='var(--text2)';
+  var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
+    method:'PATCH',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId:userId,tier:tier})
+  });
+  var parsed=await readJsonResponse(res);
+  var data=parsed.data;
+  if(!parsed.ok)throw new Error(data.error||'Failed to save tier');
+  statusEl.textContent='Saved — '+userId+' is now '+tier.toUpperCase()+(data.onProList?' (on Pro list)':'');
+  statusEl.style.color='var(--success)';
+  await loadDashboard();
+  await loadUserDetail(userId);
+}
+
+async function loadUserDetail(userId){
+  selectedUserId=userId;
+  renderUsers();
+  var panel=document.getElementById('detail-panel');
+  panel.innerHTML='<p class="status">Loading…</p>';
+  try{
+    var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId))+'&_='+Date.now(),{credentials:'same-origin'});
+    var parsed=await readJsonResponse(res);
+    var data=parsed.data;
+    if(!parsed.ok)throw new Error(data.error||'Failed to load detail');
+    var s=data.summary;
+    document.getElementById('detail-title').textContent=s.username+' — detail';
+    panel.innerHTML=
+      '<div class="tier-controls">'
+      +'<label>Membership tier</label>'
+      +'<div class="tier-row">'
+      +'<select id="tier-select"><option value="basic"'+(s.tier==='basic'?' selected':'')+'>Basic</option><option value="pro"'+(s.tier==='pro'?' selected':'')+'>Pro</option></select>'
+      +'<button class="btn-primary" id="tier-save-btn">Save tier</button>'
+      +'</div>'
+      +'<p class="tier-note">'+(data.onProList?'This member is on the Pro list — they get income tracking and multiple action/KPI pairs.':'Not on the Pro list — Basic features only.')+'</p>'
+      +'<p class="tier-status" id="tier-status"></p>'
+      +'</div>'
+      +'<div class="detail-grid">'
+      +'<div class="detail-item"><span>Current tier</span><strong>'+(s.tier==='pro'?'Pro':'Basic')+'</strong></div>'
+      +'<div class="detail-item"><span>Pro list</span><strong>'+(data.onProList?'Yes':'No')+'</strong></div>'
+      +'<div class="detail-item"><span>Visit streak</span><strong>'+s.streak+' days</strong></div>'
+      +'<div class="detail-item"><span>Total entries</span><strong>'+s.totalEntries+'</strong></div>'
+      +'<div class="detail-item"><span>Missed (7d)</span><strong>'+s.missedLast7+'</strong></div>'
+      +'<div class="detail-item"><span>Last EOD</span><strong>'+fmtDate(s.lastEntryDate)+'</strong></div>'
+      +'<div class="detail-item"><span>Income (30d)</span><strong>'+fmtMoney(s.incomeLast30)+'</strong></div>'
+      +'</div>'
+      +'<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Recent EOD history</p>'
+      +'<div class="history-mini">'+renderUserHistory(data.entries,s.tier==='pro')+'</div>'
+      +'<div class="danger-zone">'
+      +'<label>Danger zone</label>'
+      +'<button class="btn-danger" id="member-delete-btn">Delete all member data</button>'
+      +'<p class="danger-note">Removes this member\'s entries, visits, settings, and tier from the server. Their browser may still have local copies.</p>'
+      +'</div>';
+    bindReflectionButtons(panel,data.entries,s.tier==='pro');
+    document.getElementById('tier-save-btn').onclick=function(){
+      saveUserTier(userId,document.getElementById('tier-select').value).catch(function(err){
+        var el=document.getElementById('tier-status');
+        el.textContent=err.message;el.style.color='var(--danger)';
+      });
+    };
+    document.getElementById('member-delete-btn').onclick=function(){
+      deleteMemberData(userId,s.username).catch(function(err){
+        alert(err.message);
+      });
+    };
+  }catch(err){
+    panel.innerHTML='<p class="status error">'+esc(err.message)+'</p>';
+  }
+}
+
+async function loadDashboard(opts){
+  opts=opts||{};
+  if(dashboardBusy&&!opts.force)return;
+  dashboardBusy=true;
+  var wrap=document.querySelector('.table-wrap');
+  var btn=document.getElementById('btn-refresh');
+  if(!opts.silent&&wrap)wrap.classList.add('refreshing');
+  if(btn)btn.classList.add('refreshing');
+  try{
+    var res=await apiFetch('/api/admin/users'+adminApiQuery()+'&_='+Date.now());
+    var parsed=await readJsonResponse(res);
+    var data=parsed.data;
+    if(!parsed.ok){
+      if((parsed.status===403||parsed.status===401)&&!isWhopAuthError(data.error))showAccessDenied(data.error||'Admin access required');
+      throw new Error(data.error||'Failed to load dashboard');
+    }
+    setAdminUserLine(data.adminUser,{trackerPath:data.trackerPath});
+    allUsers=data.users||[];
+    renderStats(data.totals||{});
+    renderUsers();
+    if(data.storageMode==='memory'){
+      showError('Storage not detected. In Vercel → eod-tracker → Settings → Environment Variables, confirm BLOB_STORE_ID or BLOB_READ_WRITE_TOKEN exists for Production, then redeploy.');
+    }else if(data.storageMode==='blob'){
+      var banner=document.getElementById('error-banner');
+      banner.style.display='block';
+      banner.style.background='rgba(167,139,250,0.08)';
+      banner.style.borderColor='rgba(167,139,250,0.25)';
+      banner.style.color='#e9d5ff';
+      banner.textContent='Blob storage connected — member data will persist.';
+    }
+    if(selectedUserId&&!allUsers.some(function(u){return u.userId===selectedUserId;})){
+      clearDetailPanel('That member was removed.');
+    }
+  }catch(err){
+    if(!isWhopAuthError(err.message))showError(err.message+(isLocalDev()?' — use Whop dev proxy or set DEV_ADMIN=1 on the server':''));
+    if(!isWhopAuthError(err.message))document.getElementById('users-body').innerHTML='<tr><td colspan="9" class="status error">'+esc(err.message)+'</td></tr>';
+  }finally{
+    dashboardBusy=false;
+    if(wrap)wrap.classList.remove('refreshing');
+    if(btn)btn.classList.remove('refreshing');
+  }
+}
+
+function startAutoRefresh(){
+  if(refreshTimer)clearInterval(refreshTimer);
+  refreshTimer=setInterval(function(){loadDashboard({silent:true});},6000);
+}
+
+function setPageSelection(on){
+  filteredUsers().forEach(function(u){selectedForDelete[u.userId]=on;});
+  renderUsers();
+}
+
+document.getElementById('btn-refresh').onclick=function(){loadDashboard({force:true});};
+document.getElementById('search').oninput=renderUsers;
+document.getElementById('filter-tier').onchange=renderUsers;
+document.getElementById('filter-activity').onchange=renderUsers;
+document.getElementById('head-select-all').onchange=function(){
+  setPageSelection(document.getElementById('head-select-all').checked);
+};
+document.getElementById('bulk-select-all').onchange=function(){
+  setPageSelection(document.getElementById('bulk-select-all').checked);
+};
+document.getElementById('btn-bulk-delete').onclick=function(){
+  var ids=Object.keys(selectedForDelete).filter(function(k){return selectedForDelete[k];});
+  deleteMembersBulk(ids).catch(function(err){alert(err.message);});
+};
+document.addEventListener('visibilitychange',function(){if(!document.hidden)loadDashboard({silent:true,force:true});});
+startAutoRefresh();
+loadDashboard();
+fetch('/api/version?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+  var el=document.getElementById('version-label');
+  if(el&&d&&d.version)el.textContent='v'+d.version;
+}).catch(function(){});
+</script>
+</body>
+</html>

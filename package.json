@@ -1,0 +1,23 @@
+{
+  "name": "eod-tracker",
+  "version": "1.1.0",
+  "private": true,
+  "description": "VIP Implementation Club EOD accountability tracker for Whop",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "seed": "node scripts/seed-test-users.js",
+    "seed:remote": "node scripts/seed-test-users.js --api https://eod-tracker-ecru.vercel.app",
+    "test:bulk-delete": "node scripts/test-bulk-delete.js --local",
+    "test:bulk-delete:api": "node scripts/test-bulk-delete.js --api https://eod-tracker-ecru.vercel.app",
+    "reset-user": "node scripts/reset-user-to-seed.js sourcanteenbb --api https://eod-tracker-ecru.vercel.app",
+    "reset-user:local": "node scripts/reset-user-to-seed.js sourcanteenbb"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3",
+    "@vercel/blob": "^2.5.0",
+    "@vercel/kv": "^3.0.0",
+    "@whop/sdk": "^0.0.40"
+  }
+}
