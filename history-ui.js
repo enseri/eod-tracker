@@ -105,7 +105,6 @@
     if (!pair) return '';
 
     var names = streamNames || streamNamesFromEntries(entriesMap || {});
-    var showI = !(entry.publish && entry.hideIncome);
     var kCount = pair.kpiCount != null ? pair.kpiCount : 0;
     var kTarget = pair.kpiTarget;
     var aCount = pair.actionCount != null ? pair.actionCount : 0;
@@ -118,7 +117,7 @@
     var aDisp = fmtCount(aCount, aTarget);
 
     var incomeHtml = '';
-    if (isPro && showI) {
+    if (isPro) {
       var streamIncome = resolveStreamIncome(entry, streamIndex, entriesMap, names);
       var streamName = names[streamIndex] || names[0] || 'Income';
       incomeHtml =

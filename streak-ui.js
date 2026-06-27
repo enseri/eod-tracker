@@ -29,6 +29,24 @@
     return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
+  function calcVisitStreak(visits, asOfDate) {
+    var set = {};
+    (visits || []).forEach(function (d) {
+      if (d) set[d] = true;
+    });
+    if (!Object.keys(set).length) return 0;
+    var streak = 0;
+    var cur = new Date((asOfDate || todayStr()) + 'T00:00:00');
+    while (true) {
+      var ds = cur.toISOString().slice(0, 10);
+      if (set[ds]) {
+        streak++;
+        cur.setDate(cur.getDate() - 1);
+      } else break;
+    }
+    return streak;
+  }
+
   function calcSubmissionStreak(entries, asOfDate) {
     var map = entries || {};
     var set = {};
@@ -78,6 +96,7 @@
 
   global.EodStreak = {
     STREAK_MILESTONES: STREAK_MILESTONES,
+    calcVisitStreak: calcVisitStreak,
     calcSubmissionStreak: calcSubmissionStreak,
     getStreakMilestone: getStreakMilestone,
     getNextStreakMilestone: getNextStreakMilestone,

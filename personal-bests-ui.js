@@ -100,7 +100,6 @@
     if (previousEntry) foldEntryIntoBests(bests, previousEntry, isPro);
     var records = [];
     var e = entry || {};
-    var hideIncome = !!(e.publish && e.hideIncome);
 
     (e.pairs || []).forEach(function (p) {
       var aName = normName(p.action);
@@ -115,7 +114,7 @@
       }
     });
 
-    if (isPro && !hideIncome) {
+    if (isPro) {
       (e.incomeStreams || []).forEach(function (st) {
         var sName = normName(st.name) || 'Sales and income';
         var sales = Number(st.sales) || 0;

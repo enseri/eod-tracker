@@ -6,8 +6,8 @@ const { parseJsonBody } = require('../lib/parse-body');
 const { resolveMemberContext } = require('../lib/company-resolve');
 const { requireBusinessAccess } = require('../lib/business-access');
 const { syncWhopUsername } = require('../lib/whop-username-sync');
-const { publishEodToChannel } = require('../lib/eod-channel-publish');
-const { calcSubmissionStreak } = require('../lib/eod-submission-streak');
+const { publishEodToChannel, publishVisitStreakMilestone } = require('../lib/eod-channel-publish');
+const { calcStreak, todayStr } = require('../lib/analytics');
 
 module.exports = async function handler(req, res) {
   try {
@@ -116,9 +116,24 @@ module.exports = async function handler(req, res) {
 
       const updated = await updateUser(companyId, user.userId, patch);
       const entryCount = Object.keys(updated.entries || {}).length;
+      const streakNotifications = updated.settings?.streakNotifications !== false;
+      const visitStreak = calcStreak(updated.visits || []);
 
       let channel = null;
-      let submissionStreak = calcSubmissionStreak(updated.entries, date || undefined);
+      let visitMilestone = null;
+
+      const prevVisits = new Set(existing.visits || []);
+      const visitsAddedToday =
+        Array.isArray(visits) &&
+        visits.some((d) => d && !prevVisits.has(d) && d === todayStr());
+
+      if (visitsAddedToday && streakNotifications) {
+        visitMilestone = await publishVisitStreakMilestone({
+          username: resolvedUsername,
+          visits: updated.visits,
+          streakNotifications,
+        });
+      }
 
       if (date && merged[date]?.publish) {
         channel = await publishEodToChannel({
@@ -128,8 +143,9 @@ module.exports = async function handler(req, res) {
           entries: updated.entries,
           isPro: isProTier(resolvedTier),
           previousEntry,
+          visits: updated.visits,
+          streakNotifications,
         });
-        submissionStreak = channel.streak ?? submissionStreak;
       }
 
       res.status(200).json({
@@ -140,7 +156,8 @@ module.exports = async function handler(req, res) {
         entryCount,
         deletedDates: removedDates.length ? removedDates : undefined,
         storageMode: storageMode(),
-        submissionStreak,
+        visitStreak,
+        visitMilestone,
         channel,
       });
       return;

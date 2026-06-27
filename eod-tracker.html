@@ -250,6 +250,8 @@ body{
 }
 .set-title{font-size:14px;font-weight:700;margin-bottom:3px;color:var(--text);}
 .set-desc{font-size:13px;color:var(--text2);margin-bottom:12px;}
+.settings-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;}
+.settings-check input{accent-color:var(--gold);}
 .set-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .stream-setting-card{
   background:var(--card);border:1px solid var(--border2);
@@ -706,10 +708,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   </a>
   <span class="tier-badge basic" id="tier-badge">Basic</span>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-  <div class="streak-badge" id="streak-badge-wrap" title="Consecutive days with an EOD submitted">
+  <div class="streak-badge" id="streak-badge-wrap" title="Consecutive days you've opened the app">
     <span class="streak-emoji" id="streak-emoji" aria-hidden="true">✨</span>
     <span class="streak-num" id="streak-count">0</span>
-    <span class="streak-lbl">EOD streak</span>
+    <span class="streak-lbl">Day streak</span>
   </div>
   <div class="streak-milestone-hint" id="streak-next-hint"></div>
   </div>
@@ -722,6 +724,12 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 <div class="session-error" id="session-error"></div>
 
 <div class="settings-panel" id="settings-panel">
+  <div id="settings-streak-section">
+  <p class="set-title">Streak notifications</p>
+  <p class="set-desc">When enabled, streak milestone messages are sent to accountability chat when you hit a milestone. Your day streak counts consecutive days you open the app.</p>
+  <label class="settings-check"><input type="checkbox" id="settings-streak-notifs" checked/> Send streak milestone notifications</label>
+  </div>
+  <hr class="set-divider"/>
   <div id="settings-pairs-section">
   <p class="set-title">Number of action / KPI pairs</p>
   <p class="set-desc">For tracking multiple outcomes on one EOD form. <span id="pairs-pro-note" style="display:none;">(Pro only)</span></p>
@@ -818,9 +826,9 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/streak-ui.js?v=2.3.10"></script>
-<script src="/history-ui.js?v=2.3.10"></script>
-<script src="/personal-bests-ui.js?v=2.3.10"></script>
+<script src="/streak-ui.js?v=2.4.0"></script>
+<script src="/history-ui.js?v=2.4.0"></script>
+<script src="/personal-bests-ui.js?v=2.4.0"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -976,10 +984,16 @@ async function pullFromServer(){
       LS.set(VISITS_KEY,[...new Set(vis.concat(data.visits))]);
     }
     if(data.settings){
+      var s=LS.get(SETTINGS_KEY)||{};
       if(data.settings.pairCount&&isPro)pairCount=data.settings.pairCount;
       if(Array.isArray(data.settings.incomeStreams)&&data.settings.incomeStreams.length&&isPro){
         incomeStreams=data.settings.incomeStreams;
       }
+      if(data.settings.streakNotifications!==undefined)s.streakNotifications=data.settings.streakNotifications;
+      s.pairCount=pairCount;s.incomeStreams=incomeStreams;
+      LS.set(SETTINGS_KEY,s);
+      var streakNotifsEl=document.getElementById('settings-streak-notifs');
+      if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
     }
   }catch(e){console.warn('pullFromServer:',e.message);}
 }
@@ -1093,7 +1107,7 @@ async function syncFullState(){
   return syncToServer({
     entries:all,
     visits:LS.get(VISITS_KEY)||[],
-    settings:{pairCount:pairCount,incomeStreams:incomeStreams},
+    settings:getSettingsPayload(),
     username:userProfile&&userProfile.username?userProfile.username:null
   });
 }
@@ -1189,11 +1203,29 @@ function loadAllOpts(){
   }
 }
 
-function saveSettings(){LS.set(SETTINGS_KEY,{pairCount:pairCount,incomeStreams:incomeStreams});}
+function saveSettings(){
+  var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  LS.set(SETTINGS_KEY,{
+    pairCount:pairCount,
+    incomeStreams:incomeStreams,
+    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:true
+  });
+}
+function getSettingsPayload(){
+  var s=LS.get(SETTINGS_KEY)||{};
+  var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  return{
+    pairCount:pairCount,
+    incomeStreams:incomeStreams,
+    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:(s.streakNotifications!==false)
+  };
+}
 function loadSettings(){
-  var s=LS.get(SETTINGS_KEY)||{pairCount:1,incomeStreams:isPro?[{id:'default',name:'Sales and income'}]:[]};
+  var s=LS.get(SETTINGS_KEY)||{pairCount:1,incomeStreams:isPro?[{id:'default',name:'Sales and income'}]:[],streakNotifications:true};
   pairCount=s.pairCount||1;
   incomeStreams=Array.isArray(s.incomeStreams)?s.incomeStreams:(isPro?[{id:'default',name:'Sales and income'}]:[]);
+  var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
   if(!isPro){pairCount=1;incomeStreams=[];}
   else{
     pairCount=Math.min(3,Math.max(1,pairCount));
@@ -1202,17 +1234,17 @@ function loadSettings(){
   }
 }
 
-function updateSubmissionStreakUI(asOfDate){
-  if(!window.EodStreak)return;
-  var all=LS.get(ENTRIES_KEY)||{};
-  var streak=EodStreak.calcSubmissionStreak(all,asOfDate||todayStr());
+function updateVisitStreakUI(asOfDate){
+  if(!window.EodStreak)return 0;
+  var visits=LS.get(VISITS_KEY)||[];
+  var streak=EodStreak.calcVisitStreak(visits,asOfDate||todayStr());
   var countEl=document.getElementById('streak-count');
   var emojiEl=document.getElementById('streak-emoji');
   var hintEl=document.getElementById('streak-next-hint');
   if(countEl)countEl.textContent=streak;
   if(emojiEl)emojiEl.textContent=EodStreak.streakEmoji(streak);
   if(hintEl){
-    if(!streak){hintEl.textContent='Submit EODs to build streak';}
+    if(!streak){hintEl.textContent='Open the app daily to build your streak';}
     else{
       var next=EodStreak.getNextStreakMilestone(streak);
       hintEl.textContent=next?(next.days-streak)+' to '+next.emoji+' '+next.days:'Top tier 🌌';
@@ -1220,6 +1252,7 @@ function updateSubmissionStreakUI(asOfDate){
   }
   return streak;
 }
+function updateSubmissionStreakUI(asOfDate){return updateVisitStreakUI(asOfDate);}
 
 function showMilestoneToast(milestone){
   if(!milestone)return;
@@ -1260,10 +1293,23 @@ function showPersonalBestToast(records){
   setTimeout(function(){el.classList.remove('visible');},4800);
 }
 
+function streakNotificationsEnabled(){
+  var s=LS.get(SETTINGS_KEY)||{};
+  return s.streakNotifications!==false;
+}
+
 function recordVisit(){
   var visits=LS.get(VISITS_KEY)||[],today=todayStr();
-  if(!visits.includes(today)){visits.push(today);LS.set(VISITS_KEY,visits);syncToServer({visits:visits});}
-  return updateSubmissionStreakUI(today);
+  var wasNew=!visits.includes(today);
+  if(wasNew){visits.push(today);LS.set(VISITS_KEY,visits);}
+  var streak=updateVisitStreakUI();
+  if(wasNew){
+    var hit=window.EodStreak?EodStreak.getStreakMilestone(streak):null;
+    syncToServer({visits:visits,settings:getSettingsPayload()}).then(function(){
+      if(hit)showMilestoneToast(hit);
+    });
+  }
+  return streak;
 }
 
 /* SVGs */
@@ -1831,7 +1877,7 @@ async function submitEntry(){
       entry:entry,
       entries:all,
       visits:LS.get(VISITS_KEY)||[],
-      settings:{pairCount:pairCount,incomeStreams:incomeStreams}
+      settings:getSettingsPayload()
     });
     var syncNote=syncResult&&syncResult.entryCount!=null?' ('+syncResult.entryCount+' days synced)':'';
     statusEl.textContent='Saved — entry for '+fmtDate(date)+' recorded.'+syncNote;
@@ -1853,9 +1899,8 @@ async function submitEntry(){
         statusEl.textContent+=' Chat post failed — set WHOP_ACCOUNTABILITY_WEBHOOK_URL in Vercel.';
         statusEl.style.color='var(--danger)';
       }
-    }else if(syncResult&&syncResult.submissionStreak&&window.EodStreak){
-      var hit=EodStreak.getStreakMilestone(syncResult.submissionStreak);
-      if(hit)showMilestoneToast(hit);
+    }else if(syncResult&&syncResult.visitMilestone&&syncResult.visitMilestone.milestone){
+      showMilestoneToast(syncResult.visitMilestone.milestone);
     }
     startSubmitCooldown();
     renderHistory();
@@ -2402,7 +2447,7 @@ function setDeckHeight(deck){
 }
 
 function buildHistoryDayBodyHtml(e,ds){
-  var showR=!(e.publish&&e.hideEod),showI=!(e.publish&&e.hideIncome),pairs=e.pairs||[],streams=e.incomeStreams||[];
+  var pairs=e.pairs||[],streams=e.incomeStreams||[];
   var html='<div class="history-metrics">';
   pairs.forEach(function(p,idx){
     var n=pairs.length>1?' '+(ORDINALS[idx]||''):'';
@@ -2415,13 +2460,12 @@ function buildHistoryDayBodyHtml(e,ds){
   });
   if(isPro&&streams.length){
     streams.forEach(function(st,i){
-      if(!showI)return;
       var sn=(st.name||(incomeStreams[i]&&incomeStreams[i].name)||'Stream '+(i+1)).trim();
       html+='<div class="history-metric"><span>'+escH(sn)+'</span><strong>'+(st.sales!=null?st.sales:'0')+' sales</strong><em>$'+Number(st.income||0).toLocaleString()+'</em></div>';
     });
   }
   html+='</div>';
-  if(showR&&(e.reflection||'').trim()){
+  if((e.reflection||'').trim()){
     var refl=e.reflection.trim();
     var preview=refl.length>120?refl.slice(0,120)+'…':refl;
     html+='<div class="history-reflection"><div class="history-reflection-label">Reflection</div><div class="history-reflection-text">'+escH(preview)+'</div>';
@@ -2623,6 +2667,13 @@ async function init(){
   document.getElementById('tab-history').onclick=function(){switchTab('history');};
   document.getElementById('tab-progress').onclick=function(){switchTab('progress');};
   document.getElementById('settings-btn').onclick=function(){var p=document.getElementById('settings-panel');p.style.display=p.style.display==='block'?'none':'block';};
+  var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  if(streakNotifsEl){
+    streakNotifsEl.onchange=function(){
+      saveSettings();
+      syncToServer({settings:getSettingsPayload()});
+    };
+  }
   document.querySelectorAll('.btn-count').forEach(function(btn){
     btn.onclick=function(){
       if(!isPro&&Number(btn.getAttribute('data-count'))>1){showProFeatureGate('Multiple action / KPI pairs');return;}
