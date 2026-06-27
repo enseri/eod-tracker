@@ -38,15 +38,8 @@ module.exports = async function handler(req, res) {
       displayUsername = pickDisplayUsername(user.userId, record.username, user.username);
     }
 
-    const tierToSave =
-      record.adminTier === 'pro' || tier === 'pro'
-        ? 'pro'
-        : record.adminTier === 'basic'
-          ? 'basic'
-          : tier;
-
-    if (tierToSave !== record.tier) {
-      await updateUser(companyId, user.userId, { tier: tierToSave });
+    if (tier !== record.tier) {
+      await updateUser(companyId, user.userId, { tier });
     } else if (
       user.source !== 'whop' &&
       displayUsername &&
@@ -60,8 +53,8 @@ module.exports = async function handler(req, res) {
       companyId,
       whopCompanyId: whopCompanyId || null,
       experienceId: experienceId || null,
-      tier: tierToSave,
-      tierLabel: tierLabel(tierToSave),
+      tier,
+      tierLabel: tierLabel(tier),
       isAdmin: routing.isAdmin,
       canAccessDashboard: routing.canAccessDashboard,
       redirectTo: routing.redirectTo,
@@ -74,7 +67,7 @@ module.exports = async function handler(req, res) {
       forceMemberView: !!routing.forceMemberView,
       teamRoles: WHOP_TEAM_ROLES.map((id) => ({ id, label: roleLabel(id) })),
       username: displayUsername || user.username || record.username,
-      onProList: (store.proUserIds || []).includes(user.userId) || record.adminTier === 'pro',
+      onProList: tier === 'pro',
       storageMode: storageMode(),
       source: user.source,
       whopConfigured: hasWhopConfig(),

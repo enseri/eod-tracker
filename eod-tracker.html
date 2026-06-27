@@ -163,6 +163,8 @@ body{
 }
 .upgrade-banner p{font-size:13px;color:var(--text2);line-height:1.5;}
 .upgrade-banner strong{color:var(--gold);}
+.upgrade-banner.upgrade-flash{animation:upgradePulse 1.2s ease 2;}
+@keyframes upgradePulse{0%,100%{box-shadow:none;}50%{box-shadow:0 0 0 2px rgba(245,200,66,0.45);}}
 .session-error{
   display:none;margin-bottom:16px;padding:12px 14px;border-radius:var(--radius-sm);
   background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);
@@ -637,7 +639,7 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 </div>
 
 <div class="upgrade-banner" id="upgrade-banner">
-  <p><strong>Pro feature.</strong> Upgrade to Pro for sales & income tracking and multiple action/KPI pairs in settings.</p>
+  <p><strong>Pro feature.</strong> Upgrade to Pro for sales & income tracking, multiple action/KPI pairs, and saved action/KPI options.</p>
 </div>
 <div class="session-error" id="session-error"></div>
 
@@ -751,6 +753,7 @@ var userTier='basic',userId=null,whopCompanyId=null,isPro=false,userProfile=null
 var SUBMIT_COOLDOWN_SEC=10,submitCooldownUntil=0,submitCooldownInterval=null,submitBtnDefaultHtml='';
 
 function isProTier(t){return t==='pro';}
+function canSaveOptions(){return isPro;}
 function apiFetch(url,opts){return fetch(url,Object.assign({credentials:'same-origin'},opts||{}));}
 
 async function readJsonResponse(res){
@@ -1029,8 +1032,8 @@ function renderTierUI(){
   if(incomeSection)incomeSection.style.display=isPro?'':'none';
   if(incomeDivider)incomeDivider.style.display=isPro?'':'none';
   if(pairsNote)pairsNote.style.display=isPro?'none':'inline';
-  if(btn2){btn2.disabled=!isPro;btn2.title=isPro?'':'Pro only';}
-  if(btn3){btn3.disabled=!isPro;btn3.title=isPro?'':'Pro only';}
+  if(btn2){btn2.disabled=false;btn2.title=isPro?'':'Pro only';}
+  if(btn3){btn3.disabled=false;btn3.title=isPro?'':'Pro only';}
   if(hideIncome){
     var hideLabel=hideIncome.closest('label');
     if(hideLabel)hideLabel.style.display=isPro?'':'none';
@@ -1046,6 +1049,43 @@ function fmtDate(ds){
 }
 function escH(s){var d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
 function escA(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+
+function showProFeatureGate(featureLabel){
+  var ex=document.getElementById('eod-pro-gate-modal');
+  if(ex)ex.remove();
+  var overlay=document.createElement('div');
+  overlay.id='eod-pro-gate-modal';
+  overlay.className='modal-overlay';
+  var box=document.createElement('div');
+  box.className='modal-box';
+  var title=document.createElement('p');
+  title.className='modal-title';
+  title.textContent='Pro feature';
+  box.appendChild(title);
+  var sub=document.createElement('p');
+  sub.className='modal-sub';
+  sub.innerHTML='<strong style="color:var(--gold);">'+escH(featureLabel)+'</strong> is available on Pro. Upgrade to unlock it. On Basic, type action and KPI names for each entry instead of saving them to your list.';
+  box.appendChild(sub);
+  var btns=document.createElement('div');
+  btns.className='modal-btns';
+  var okBtn=document.createElement('button');
+  okBtn.className='btn-save';
+  okBtn.textContent='OK';
+  okBtn.onclick=function(){overlay.remove();};
+  btns.appendChild(okBtn);
+  box.appendChild(btns);
+  overlay.appendChild(box);
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  var banner=document.getElementById('upgrade-banner');
+  if(banner&&!isPro){
+    banner.style.display='block';
+    banner.classList.remove('upgrade-flash');
+    void banner.offsetWidth;
+    banner.classList.add('upgrade-flash');
+    banner.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+}
 
 /* options stored as [{name,target}] */
 function optKey(i){return'eod_opts_'+i;}
@@ -1177,18 +1217,50 @@ function bindPair(i){
   var kS=gc('f-kpi-select',i),kNR=gc('f-kpi-new-row',i),kN=gc('f-kpi-new',i),kE=gc('f-kpi-edit-btn',i),kC=gc('f-kpi-create-btn',i),kSt=gc('f-kpi-status',i);
   renderSel(aS,aNR,aE,getOpts('action',i),null);
   renderSel(kS,kNR,kE,getOpts('kpi',i),null);
-  aS.onchange=function(){applyVis(aS,aNR,aE);updateHint('action',i,aS.value);};
-  kS.onchange=function(){applyVis(kS,kNR,kE);updateHint('kpi',i,kS.value);};
+  var lastActionSel=aS.style.display!=='none'&&aS.value!==ADD_NEW?aS.value:'';
+  var lastKpiSel=kS.style.display!=='none'&&kS.value!==ADD_NEW?kS.value:'';
+  aS.onchange=function(){
+    if(!canSaveOptions()&&aS.value===ADD_NEW){
+      showProFeatureGate('Saved action options');
+      aS.value=lastActionSel||normOpts(getOpts('action',i))[0].name;
+      applyVis(aS,aNR,aE);
+      return;
+    }
+    if(aS.value!==ADD_NEW)lastActionSel=aS.value;
+    applyVis(aS,aNR,aE);
+    updateHint('action',i,aS.value);
+  };
+  kS.onchange=function(){
+    if(!canSaveOptions()&&kS.value===ADD_NEW){
+      showProFeatureGate('Saved KPI options');
+      kS.value=lastKpiSel||normOpts(getOpts('kpi',i))[0].name;
+      applyVis(kS,kNR,kE);
+      return;
+    }
+    if(kS.value!==ADD_NEW)lastKpiSel=kS.value;
+    applyVis(kS,kNR,kE);
+    updateHint('kpi',i,kS.value);
+  };
   aE.onclick=function(){openEditModal('action',i,aS,aNR,aE);};
   kE.onclick=function(){openEditModal('kpi',i,kS,kNR,kE);};
   aC.onclick=function(){doCreate('action',i,aS,aN,aNR,aE,aSt);};
   kC.onclick=function(){doCreate('kpi',i,kS,kN,kNR,kE,kSt);};
+  if(aC)aC.style.display=canSaveOptions()?'':'none';
+  if(kC)kC.style.display=canSaveOptions()?'':'none';
   aN.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();aC.click();}};
   kN.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();kC.click();}};
 }
 
 function renderSel(sel,newRow,editBtn,list,selected){
   list=normOpts(list);
+  if(list.length===0&&!canSaveOptions()){
+    sel.innerHTML='<option value="">Type below for this entry</option><option value="'+ADD_NEW+'">+ Add new option</option>';
+    sel.style.display='';
+    editBtn.style.display='none';
+    newRow.style.display='flex';
+    sel.value='';
+    return;
+  }
   if(list.length===0){sel.innerHTML='';sel.style.display='none';editBtn.style.display='none';newRow.style.display='flex';return;}
   sel.innerHTML=list.map(function(o){return'<option value="'+escA(o.name)+'">'+escH(o.name)+'</option>';}).join('')+'<option value="'+ADD_NEW+'">+ Add new option</option>';
   sel.style.display='';
@@ -1201,10 +1273,11 @@ function applyVis(sel,newRow,editBtn){
   if(sel.style.display==='none'){newRow.style.display='flex';editBtn.style.display='none';return;}
   var n=sel.value===ADD_NEW;
   newRow.style.display=n?'flex':'none';
-  editBtn.style.display=n?'none':'';
+  editBtn.style.display=(n||!canSaveOptions())?'none':'';
 }
 
 function doCreate(type,i,sel,inp,newRow,editBtn,statusEl){
+  if(!canSaveOptions()){showProFeatureGate('Saved '+(type==='action'?'action':'KPI')+' options');return;}
   var name=inp.value.trim(),label=type==='action'?'action':'KPI';
   if(!name){statusEl.textContent='Type a name first.';statusEl.style.color='var(--danger)';return;}
   var list=normOpts(getOpts(type,i));
@@ -1217,6 +1290,7 @@ function doCreate(type,i,sel,inp,newRow,editBtn,statusEl){
 }
 
 function openEditModal(type,i,sel,newRow,editBtn){
+  if(!canSaveOptions()){showProFeatureGate('Editing saved '+(type==='action'?'action':'KPI')+' options');return;}
   var list=normOpts(getOpts(type,i));
   if(!list.length){alert('No saved options to edit yet.');return;}
   var label=type==='action'?'action':'KPI';
@@ -1526,8 +1600,8 @@ function applyEntryToForm(entry){
 
 function getPairFieldValues(i){
   var els=getPairEls(i);
-  var aUsesSel=els.aSelect&&els.aSelect.style.display!=='none'&&els.aSelect.value!==ADD_NEW;
-  var kUsesSel=els.kSelect&&els.kSelect.style.display!=='none'&&els.kSelect.value!==ADD_NEW;
+  var aUsesSel=els.aSelect&&els.aSelect.style.display!=='none'&&els.aSelect.value&&els.aSelect.value!==ADD_NEW;
+  var kUsesSel=els.kSelect&&els.kSelect.style.display!=='none'&&els.kSelect.value&&els.kSelect.value!==ADD_NEW;
   var action=aUsesSel?els.aSelect.value:(els.aNew?els.aNew.value.trim():'');
   var kpi=kUsesSel?els.kSelect.value:(els.kNew?els.kNew.value.trim():'');
   return{action:action,kpi:kpi};
@@ -1595,17 +1669,18 @@ async function submitEntry(){
     submittedAt:new Date().toISOString()
   };
   var all=LS.get(ENTRIES_KEY)||{};all[date]=entry;
-  /* save new action/kpi names to options if typed in new-opt row */
-  for(var i=0;i<pairCount;i++){
-    var p=pairs[i];
-    var al=normOpts(getOpts('action',i)),an=al.map(function(o){return o.name;});
-    if(!an.includes(p.action)){al=al.concat([{name:p.action,target:null}]);setOpts('action',i,al);}
-    var kl=normOpts(getOpts('kpi',i)),kn=kl.map(function(o){return o.name;});
-    if(!kn.includes(p.kpi)){kl=kl.concat([{name:p.kpi,target:null}]);setOpts('kpi',i,kl);}
-    saveOpts(i);
-    var els=getPairEls(i);
-    renderSel(els.aSelect,els.aNewRow,els.aEdit,al,p.action);
-    renderSel(els.kSelect,els.kNewRow,els.kEdit,kl,p.kpi);
+  if(canSaveOptions()){
+    for(var i=0;i<pairCount;i++){
+      var p=pairs[i];
+      var al=normOpts(getOpts('action',i)),an=al.map(function(o){return o.name;});
+      if(!an.includes(p.action)){al=al.concat([{name:p.action,target:null}]);setOpts('action',i,al);}
+      var kl=normOpts(getOpts('kpi',i)),kn=kl.map(function(o){return o.name;});
+      if(!kn.includes(p.kpi)){kl=kl.concat([{name:p.kpi,target:null}]);setOpts('kpi',i,kl);}
+      saveOpts(i);
+      var els=getPairEls(i);
+      renderSel(els.aSelect,els.aNewRow,els.aEdit,al,p.action);
+      renderSel(els.kSelect,els.kNewRow,els.kEdit,kl,p.kpi);
+    }
   }
   var ok=LS.set(ENTRIES_KEY,all);
   if(ok){
@@ -2368,7 +2443,7 @@ async function init(){
   document.getElementById('settings-btn').onclick=function(){var p=document.getElementById('settings-panel');p.style.display=p.style.display==='block'?'none':'block';};
   document.querySelectorAll('.btn-count').forEach(function(btn){
     btn.onclick=function(){
-      if(!isPro&&Number(btn.getAttribute('data-count'))>1)return;
+      if(!isPro&&Number(btn.getAttribute('data-count'))>1){showProFeatureGate('Multiple action / KPI pairs');return;}
       var n=Number(btn.getAttribute('data-count'));if(n===pairCount)return;
       pairCount=n;saveSettings();updatePairBtns();renderPairCards();
       loadEntryForSelectedDate();

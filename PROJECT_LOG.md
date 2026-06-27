@@ -522,6 +522,42 @@ Create GitHub repo and commit/push everything.
 
 ---
 
+## Phase 32 — Pro-Gated Saved Action/KPI Options
+
+### Prompt
+Only Pro members can add action/KPI options to their saved list. Basic members should still see “+ Add new option” but get a Pro gate (like multiple pairs). Basic members type names per entry instead of saving options.
+
+### Changes Made
+- **`eod-tracker.html`:** `showProFeatureGate()` modal + upgrade banner pulse; gate on “+ Add new option”, Create, and submit auto-save; pair buttons 2/3 show same modal instead of silent disable
+- **`lib/tiers.js`:** `savedOptions` in `PRO_FEATURES`
+- **`version.js`:** v2.3.2
+
+### Verified
+- Pro: save options via Create, dropdown, and submit. Basic: gate on add; type per entry when list empty
+
+---
+
+## Phase 33 — Admin Tier Downgrade & Basic Option Enforcement
+
+### Prompt
+Admin could not set a member back to Basic from Pro (save appeared to do nothing). Basic members could still add saved options because Whop Pro plan IDs overrode `adminTier`.
+
+### Root Cause
+- **`api/me.js`:** `tierToSave` preferred Whop `plan_id` over `adminTier === 'basic'`
+- **`api/entries.js`:** entry sync upgraded `tier` to `pro` whenever `resolvedTier === 'pro'`, even after admin downgrade
+
+### Changes Made
+- **`api/me.js`:** tier from `resolveTierFromContext` only (admin `basic` wins over plan IDs)
+- **`api/entries.js`:** sync uses `resolvedTier` directly; server rejects `options` patch for non-Pro
+- **`eod-tracker.html`:** `canSaveOptions()` helper; hide Create/Edit for Basic; Basic empty-list dropdown shows “+ Add new option” with gate; fix field read when select value empty
+- **`lib/analytics.js`:** `onProList` follows effective tier
+- **`version.js`:** v2.3.3
+
+### Verified
+- Admin downgrade to Basic persists; member app shows Basic and blocks saving options
+
+---
+
 ## Current Architecture
 
 | Layer | Files |
@@ -559,7 +595,18 @@ Debug: `GET /api/storage-status?test=1`
 
 ## Current Version
 
-**v2.3.1** (June 2026)
+**v2.3.3** (June 2026)
+
+## Pro vs Basic (Member Features)
+
+| Feature | Basic | Pro |
+|---------|-------|-----|
+| EOD form (1 action/KPI pair) | Yes | Yes |
+| Multiple action/KPI pairs | No | Yes (up to 3) |
+| Income streams | No | Yes (up to 3) |
+| Progress charts | No | Yes |
+| **Saved action/KPI options** | No — type per entry | Yes — dropdown + targets |
+| Admin tier override | `adminTier` on server wins over Whop plan IDs |
 
 ## Key Environment Variables (Vercel Production)
 
@@ -605,7 +652,9 @@ Do **not** set `DEV_ADMIN=1` in production.
 - ~~Wire Whop JWT + `WHOP_PRO_PLAN_IDS`~~ — code in `lib/tier-resolve.js`; needs env + plan IDs configured
 - ~~Publish to channel~~ — posts to separate Whop **Chat** app via `WHOP_ACCOUNTABILITY_WEBHOOK_URL` (not Messages API)
 - ~~Cross-device sync~~ — server Blob storage + pull on load when Whop session present
+- ~~Saved action/KPI options (Pro only)~~ — client gate + server `options` patch blocked for Basic
+- ~~Admin tier downgrade~~ — `adminTier === 'basic'` respected in `/api/me` and `/api/entries`
 
 ---
 
-*Last updated: Phase 31 — June 2026 (v2.3.1)*
+*Last updated: Phase 33 — June 2026 (v2.3.3)*

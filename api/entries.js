@@ -77,26 +77,18 @@ module.exports = async function handler(req, res) {
 
       const patch = {
         username: resolvedUsername,
+        tier: resolvedTier,
       };
-
-      // Never downgrade admin-assigned Pro tier during entry sync.
-      if (existing?.adminTier === 'pro' || resolvedTier === 'pro') {
-        patch.tier = 'pro';
-      } else if (existing?.adminTier === 'basic') {
-        patch.tier = 'basic';
-      } else {
-        patch.tier = resolvedTier;
-      }
 
       const merged = { ...(existing.entries || {}) };
 
       if (bulkEntries && typeof bulkEntries === 'object') {
         Object.keys(bulkEntries).forEach((d) => {
-          merged[d] = stripEntryForTier(bulkEntries[d], tier);
+          merged[d] = stripEntryForTier(bulkEntries[d], resolvedTier);
         });
       }
       if (date && entry) {
-        merged[date] = stripEntryForTier(entry, tier);
+        merged[date] = stripEntryForTier(entry, resolvedTier);
       }
       const removedDates = Array.isArray(deleteEntryDates)
         ? deleteEntryDates.filter((d) => typeof d === 'string' && d)
@@ -114,10 +106,10 @@ module.exports = async function handler(req, res) {
       }
 
       if (settings) {
-        patch.settings = clampSettingsForTier(settings, tier);
+        patch.settings = clampSettingsForTier(settings, resolvedTier);
       }
 
-      if (options) {
+      if (options && isProTier(resolvedTier)) {
         patch.options = options;
       }
 
