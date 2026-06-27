@@ -573,6 +573,14 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 }
 .history-day-delete-btn:hover{background:rgba(248,113,113,0.16);border-color:var(--danger);}
 .history-day-delete-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.history-day-delete-btn--pending{
+  border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,0.12);
+}
+.history-day-delete-btn--pending:hover{background:rgba(212,175,55,0.2);border-color:var(--gold);}
+.history-status{font-size:13px;min-height:18px;margin-bottom:10px;color:var(--text2);}
+.history-status.is-warn{color:var(--gold);}
+.history-status.is-error{color:var(--danger);}
+.history-status.is-success{color:var(--success);}
 .modal-box--wide{max-width:520px;}
 .modal-reflection-text{font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap;}
 
@@ -785,6 +793,7 @@ button:hover{border-color:var(--gold);color:var(--gold);}
 
 <div id="panel-history" style="display:none;">
   <div class="card">
+    <div class="history-status" id="history-status" aria-live="polite"></div>
     <div id="history-list-wrap"></div>
   </div>
 </div>
@@ -809,9 +818,9 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/streak-ui.js?v=2.3.9"></script>
-<script src="/history-ui.js?v=2.3.9"></script>
-<script src="/personal-bests-ui.js?v=2.3.9"></script>
+<script src="/streak-ui.js?v=2.3.10"></script>
+<script src="/history-ui.js?v=2.3.10"></script>
+<script src="/personal-bests-ui.js?v=2.3.10"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -831,6 +840,9 @@ var chartStateStore={},CHART_DEFAULT_DAYS=30;
 var userTier='basic',userId=null,whopCompanyId=null,isPro=false,userProfile=null,isSubmitting=false;
 var SUBMIT_COOLDOWN_SEC=10,submitCooldownUntil=0,submitCooldownInterval=null,submitBtnDefaultHtml='';
 var submitReplacePending=null;
+var deleteConfirmPending=null;
+var DELETE_BTN_LABEL='Delete EOD';
+var DELETE_BTN_CONFIRM_LABEL='Press again to delete';
 
 function isProTier(t){return t==='pro';}
 function canSaveOptions(){return isPro;}
@@ -1701,6 +1713,33 @@ function validateForm(){
   return true;
 }
 
+function setHistoryStatus(msg,kind){
+  var el=document.getElementById('history-status');
+  if(!el)return;
+  el.textContent=msg||'';
+  el.className='history-status'+(kind?' is-'+kind:'');
+}
+
+function updateDeleteConfirmButtons(){
+  document.querySelectorAll('.history-day-delete-btn').forEach(function(b){
+    var d=b.getAttribute('data-date');
+    if(b.disabled)return;
+    if(d===deleteConfirmPending){
+      b.textContent=DELETE_BTN_CONFIRM_LABEL;
+      b.classList.add('history-day-delete-btn--pending');
+    }else{
+      b.textContent=DELETE_BTN_LABEL;
+      b.classList.remove('history-day-delete-btn--pending');
+    }
+  });
+}
+
+function clearDeleteConfirmPending(){
+  deleteConfirmPending=null;
+  updateDeleteConfirmButtons();
+  setHistoryStatus('');
+}
+
 function clearSubmitReplacePending(){
   submitReplacePending=null;
 }
@@ -2427,6 +2466,7 @@ function bindHistoryDeck(root,entriesMap){
         if(!was){
           ensureHistoryDayBody(card,entriesMap);
           card.classList.add('expanded');
+          updateDeleteConfirmButtons();
         }
       },
       onReflection:function(btn){
@@ -2451,15 +2491,26 @@ function bindHistoryDeck(root,entriesMap){
 async function deleteHistoryEntry(date,btn){
   if(!date)return;
   var all=LS.get(ENTRIES_KEY)||{};
-  if(!all[date])return;
+  if(!all[date]){
+    if(deleteConfirmPending===date)clearDeleteConfirmPending();
+    return;
+  }
   var label=fmtDate(date);
-  if(!window.confirm('Delete your EOD for '+label+'? This cannot be undone.'))return;
-  if(btn){btn.disabled=true;btn.textContent='Deleting…';}
+  if(deleteConfirmPending!==date){
+    deleteConfirmPending=date;
+    updateDeleteConfirmButtons();
+    setHistoryStatus('Press the button again to delete the EOD for '+label+'.','warn');
+    return;
+  }
+  deleteConfirmPending=null;
+  if(btn){btn.disabled=true;btn.textContent='Deleting…';btn.classList.remove('history-day-delete-btn--pending');}
   delete all[date];
   LS.set(ENTRIES_KEY,all);
   var syncResult=await syncToServer({deleteEntryDates:[date]});
   if(!syncResult||syncResult.ok===false){
-    alert('Delete failed to sync. Your entry was removed locally — refresh or try again.');
+    setHistoryStatus('Delete saved locally but failed to sync — refresh or try again.','error');
+  }else{
+    setHistoryStatus('Deleted EOD for '+label+'.','success');
   }
   updateSubmissionStreakUI();
   if(document.getElementById('f-date').value===date){
@@ -2499,6 +2550,8 @@ function renderHistory(){
   if(window.HistoryUI)html+=HistoryUI.loadMoreHtml(hiddenCount);
   wrap.innerHTML=html;
   bindHistoryDeck(wrap,all);
+  if(deleteConfirmPending&&!all[deleteConfirmPending])clearDeleteConfirmPending();
+  else updateDeleteConfirmButtons();
 }
 
 function updatePairBtns(){
