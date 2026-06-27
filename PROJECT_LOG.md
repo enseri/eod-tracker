@@ -287,58 +287,6 @@ Member dashboard scrolls past the background; gradient loops with a visible divi
 
 ---
 
-## Current Architecture
-
-| Layer | Files |
-|-------|-------|
-| Member app | `eod-tracker.html` |
-| Admin app | `admin.html` |
-| API | `api/me.js`, `api/entries.js`, `api/admin/users.js`, `api/admin/user.js`, `api/storage-status.js` |
-| Server logic | `lib/store.js`, `lib/auth.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js` |
-| Deploy | `vercel.json`, `deploy.ps1` |
-| Post-update steps | `POST_UPDATE_CHECKLIST.md` |
-| Project history | `PROJECT_LOG.md` |
-| Test data seed | `scripts/seed-test-users.js`, `npm run seed` |
-
-## Storage (Production)
-
-| Mode | Status |
-|------|--------|
-| Vercel Blob (private, OIDC via `BLOB_STORE_ID`) | Connected |
-| Redis/KV | Not configured (Blob is primary) |
-| Fallback | In-memory on Vercel only if Blob unavailable |
-
-Debug: `GET /api/storage-status?test=1`
-
-## Testing URLs
-
-| Purpose | URL |
-|---------|-----|
-| Member (Basic) | `https://eod-tracker-ecru.vercel.app/eod-tracker.html?tier=basic` |
-| Member (Pro) + Progress | `https://eod-tracker-ecru.vercel.app/eod-tracker.html?tier=pro` |
-| Admin | `https://eod-tracker-ecru.vercel.app/admin.html?admin=1` |
-| Storage debug | `https://eod-tracker-ecru.vercel.app/api/storage-status?test=1` |
-
-## Progress Tab (Current Behavior — Pro Only)
-
-| Chart | Selector | Data shown |
-|-------|----------|------------|
-| Action | Dropdown of all action names | Daily completion counts vs target |
-| KPI | Dropdown of all KPI names | Daily KPI counts vs target |
-| Income streams | **View all** or per-stream | Daily income ($) + daily sales (count) |
-
-- Tab requires **2+ EOD submissions** overall; each selected metric needs **2+ logged days**
-- Hover chart points for exact values; purple line = daily target when set
-
-## Open Items
-
-- Wire Whop JWT + `WHOP_PRO_PLAN_IDS` for automatic tier assignment in production iframe
-- Implement real “Publish to channel” (Whop API) — privacy flags are UI-only today
-- CSV export from admin (optional)
-- Cross-device sync depends on server storage; members must submit at least once while online for admin visibility
-
----
-
 ## Phase 19 — Admin Delete Fix, Responsiveness & Post-Update Checklist
 
 ### Prompts
@@ -454,4 +402,210 @@ After adding Whop env vars, server returned `FUNCTION_INVOCATION_FAILED`.
 
 ---
 
-*Last updated: Phase 24 — June 2026*
+## Phase 25 — Shared History UI, Collapsed Previews & Submit Guards
+
+### Prompts
+- History cards should show compact previews when collapsed (bars, income, date)
+- Fix cross-device identity and pull server data on load
+- Submit button validation and double-tap guard
+
+### Changes Made
+- **`history-ui.js`:** shared deck controls, collapsed bar previews, lazy-expanded body, deck pagination — used by member + admin
+- **`eod-tracker.html`:** pull from server on init; submit cooldown + validation; date-entry notices
+- **`streak-ui.js`:** client-side streak milestone helpers (later aligned with server streak logic)
+
+---
+
+## Phase 26 — Business Lock & Role-Based Routing
+
+### Prompt
+App must only work for the brother’s Whop business; fix admin/member routing when previewing or opening from different businesses.
+
+### Changes Made
+- **`lib/business-access.js`:** `WHOP_COMPANY_ID` required; resolve session business from experience URL/referer/JWT (no env fallback for session detection); deny if session business ≠ configured business
+- **`lib/company-resolve.js`:** `resolveIncomingResourceIds()` vs `resolveResourceIds()` split
+- **`lib/member-routing.js`:** team roles via `authorized_users` + `checkAccess`; `?view=member` for admins to use tracker; dashboard vs tracker paths
+- **`lib/whop-roles.js`:** team access resolution
+- **`eod-tracker.html` / `admin.html`:** Admin panel ↔ Member tracker nav buttons; access gate for wrong business
+
+### Verified
+- Deployed v2.2.6
+
+---
+
+## Phase 27 — EOD Submission Streaks, Milestones & Channel Publish (v2.2.7)
+
+### Prompt
+When “Publish to channel” is checked, post compact EOD markdown to Whop accountability chat; track EOD submission streak with milestones to 1000.
+
+### Changes Made
+- **`lib/eod-submission-streak.js`**, **`lib/streak-milestones.js`:** consecutive-day submission streak + milestone table
+- **`lib/eod-channel-format.js`:** markdown EOD post (pairs, reflection, income, streak, milestone)
+- **`lib/eod-channel-publish.js`:** initial Messages API publish path
+- **`api/entries.js`:** publish on submit when `entry.publish`; return `submissionStreak` + `channel` result
+- **`streak-ui.js`:** header badge, next-milestone hint, milestone toast
+- **`eod-tracker.html`:** streak UI wired to submission streak (replaced visit-only display for EOD context)
+
+### Verified
+- Deployed v2.2.7
+
+---
+
+## Phase 28 — Delete EOD from History
+
+### Prompt
+Add delete button on expanded history cards with confirmation.
+
+### Changes Made
+- **`eod-tracker.html`:** “Delete EOD” on expanded history body; `confirm()` dialog; local delete + `deleteEntryDates` sync to server; refresh history + streak + form if same date
+- **`history-ui.js`:** delete button click handler (stops deck toggle propagation)
+- **`api/entries.js`:** accept `deleteEntryDates[]` in POST body
+- **`lib/store.js`:** `deleteEntryDates` in `mergeUserRecords` + verify callback on delete
+
+### Verified
+- Deployed v2.2.8+
+
+---
+
+## Phase 29 — Accountability Chat via Webhook (v2.3.0)
+
+### Prompt
+Chat is a **separate Whop Chat app** on the business — not inside the EOD tracker. Use webhooks to post messages when publish + streak are set. Remove in-app chat setup UI.
+
+### Changes Made
+- **`lib/eod-channel-publish.js`:** rewritten to POST `{ username, content }` to `WHOP_ACCOUNTABILITY_WEBHOOK_URL` (or `WHOP_CHAT_WEBHOOK_URL`)
+- **Removed:** in-app accountability chat setup panel, channel list API, Messages API channel ID discovery
+- **`eod-tracker.html`:** error hint points to Vercel webhook env var
+
+### Setup (operator)
+1. Whop **Chat** app → Settings → Webhooks → create webhook → copy URL
+2. Vercel: `WHOP_ACCOUNTABILITY_WEBHOOK_URL=https://…`
+3. Redeploy; test with “Publish to channel” checked on submit
+
+### Verified
+- User confirmed webhook chat post working
+
+---
+
+## Phase 30 — Layout Fix, Version API & Deploy (v2.3.1)
+
+### Prompt
+App filled full Whop iframe width after a bad edit; version label stuck on old deploys.
+
+### Root Cause
+Broken `</div>` nesting in `eod-tracker.html` closed `#app-root` after the topbar only — tabs/form rendered **outside** the `max-width: 680px` container.
+
+### Changes Made
+- **`eod-tracker.html`:** fixed topbar HTML structure; `#app-root` / `.eod-app` width rules
+- **`api/version.js`**, **`version.js`:** single source of truth for version
+- **`eod-tracker.html` / `admin.html`:** version label loads from `/api/version` at runtime
+- **`vercel.json`:** stronger no-cache headers for `/experiences/*` and `/api/version`
+- **Deploy note:** `vercel --prod` from project folder uploads local files; dashboard “Redeploy” alone does not
+
+### Verified
+- Production `/api/version` → `2.3.1`; narrow centered layout restored in Whop iframe
+
+---
+
+## Phase 31 — GitHub Repository
+
+### Prompt
+Create GitHub repo and commit/push everything.
+
+### Changes Made
+- **`.gitignore`:** `node_modules/`, `.vercel/`, `data/`, all `.env*` except `.env.example`
+- **Git:** initial commit on `main` (49 files)
+- **Remote:** `https://github.com/enseri/eod-tracker` (private)
+
+### Verified
+- Repo created and pushed
+
+---
+
+## Current Architecture
+
+| Layer | Files |
+|-------|-------|
+| Member app | `eod-tracker.html`, `history-ui.js`, `streak-ui.js` |
+| Admin app | `admin.html`, `history-ui.js` |
+| API | `api/me.js`, `api/entries.js`, `api/version.js`, `api/config.js`, `api/storage-status.js`, `api/admin/users.js`, `api/admin/user.js`, `api/admin/seed.js`, `api/admin/reset-user.js` |
+| Server logic | `lib/store.js`, `lib/auth.js`, `lib/business-access.js`, `lib/company-resolve.js`, `lib/member-routing.js`, `lib/whop-roles.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js`, `lib/eod-channel-publish.js`, `lib/eod-channel-format.js`, `lib/eod-submission-streak.js`, `lib/streak-milestones.js`, `lib/whop-username-sync.js`, `lib/whop-usernames.js` |
+| Deploy | `vercel.json`, `deploy.ps1` |
+| Version | `version.js` → `lib/version.js` → `/api/version` (UI label loads from API) |
+| Post-update steps | `POST_UPDATE_CHECKLIST.md` |
+| Project history | `PROJECT_LOG.md` |
+| Test data seed | `scripts/seed-test-users.js`, `scripts/test-bulk-delete.js`, `scripts/reset-user-to-seed.js` |
+
+## Storage (Production)
+
+| Mode | Status |
+|------|--------|
+| Vercel Blob (private, OIDC via `BLOB_STORE_ID`) | Connected |
+| Redis/KV | Not configured (Blob is primary) |
+| Fallback | In-memory on Vercel only if Blob unavailable |
+
+Debug: `GET /api/storage-status?test=1`
+
+## Production URLs
+
+| Purpose | URL |
+|---------|-----|
+| Member app (Whop iframe) | `https://eod-tracker-ecru.vercel.app/experiences/[experienceId]` |
+| Member (direct) | `https://eod-tracker-ecru.vercel.app/` |
+| Admin dashboard | `https://eod-tracker-ecru.vercel.app/dashboard/[companyId]` |
+| API version | `https://eod-tracker-ecru.vercel.app/api/version` |
+| Storage debug | `https://eod-tracker-ecru.vercel.app/api/storage-status?test=1` |
+| GitHub | `https://github.com/enseri/eod-tracker` |
+
+## Current Version
+
+**v2.3.1** (June 2026)
+
+## Key Environment Variables (Vercel Production)
+
+| Variable | Purpose |
+|----------|---------|
+| `WHOP_API_KEY` | Whop REST API |
+| `WHOP_APP_ID` | App JWT audience (`app_…`) |
+| `WHOP_COMPANY_ID` | **Required** — locks app to one business (`biz_…`) |
+| `WHOP_EXPERIENCE_ID` | Optional — EOD tracker experience routing |
+| `WHOP_ACCOUNTABILITY_WEBHOOK_URL` | Chat publish — webhook URL from Whop **Chat** app settings |
+| `WHOP_PRO_PLAN_IDS` | Comma-separated `plan_…` IDs that grant Pro tier |
+| `BLOB_STORE_ID` or `BLOB_READ_WRITE_TOKEN` | Persistent member data |
+
+Do **not** set `DEV_ADMIN=1` in production.
+
+## Progress Tab (Pro Only)
+
+| Chart | Selector | Data shown |
+|-------|----------|------------|
+| Action | Dropdown of all action names | Daily completion counts vs target |
+| KPI | Dropdown of all KPI names | Daily KPI counts vs target |
+| Income streams | **View all** or per-stream | Daily income ($) + daily sales (count) |
+
+- Tab requires **2+ EOD submissions** overall; each selected metric needs **2+ logged days**
+- Hover chart points for exact values; purple line = daily target when set
+
+## Streaks (Current Behavior)
+
+- **EOD submission streak** — consecutive calendar days with at least one EOD entry (not visit-based)
+- Milestones at: 1, 3, 5, 7, 10, 14, 21, 30, 45, 60, 75, 90, 100, 150, 200, 250, 300, 365, 500, 750, 1000
+- UI: streak badge in header, next-milestone hint, toast on milestone hit
+- Included in accountability chat webhook post when publish is enabled
+
+## Open Items
+
+- **`WHOP_PRO_PLAN_IDS` + product access API check** — JWT `plan_id` alone may not cover all membership types; add `WHOP_PRO_PRODUCT_ID` + `checkAccess` on `/api/me` for instant Pro after purchase
+- **Upgrade banner checkout link** — embed or link Whop Pro checkout in member UI
+- **CSV export** from admin (optional)
+- **Webhook for membership events** — auto-upgrade Pro tier on `membership.valid` (belt-and-suspenders with plan IDs)
+
+## Completed (formerly open)
+
+- ~~Wire Whop JWT + `WHOP_PRO_PLAN_IDS`~~ — code in `lib/tier-resolve.js`; needs env + plan IDs configured
+- ~~Publish to channel~~ — posts to separate Whop **Chat** app via `WHOP_ACCOUNTABILITY_WEBHOOK_URL` (not Messages API)
+- ~~Cross-device sync~~ — server Blob storage + pull on load when Whop session present
+
+---
+
+*Last updated: Phase 31 — June 2026 (v2.3.1)*
