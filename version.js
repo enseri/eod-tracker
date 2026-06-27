@@ -1,2 +1,2 @@
 /** Display version — lib/version.js reads this file for API. */
-window.EOD_APP_VERSION = '2.4.0';
+window.EOD_APP_VERSION = '2.4.1';

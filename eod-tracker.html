@@ -826,9 +826,9 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/streak-ui.js?v=2.4.0"></script>
-<script src="/history-ui.js?v=2.4.0"></script>
-<script src="/personal-bests-ui.js?v=2.4.0"></script>
+<script src="/streak-ui.js?v=2.4.1"></script>
+<script src="/history-ui.js?v=2.4.1"></script>
+<script src="/personal-bests-ui.js?v=2.4.1"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -1225,6 +1225,7 @@ function loadSettings(){
   pairCount=s.pairCount||1;
   incomeStreams=Array.isArray(s.incomeStreams)?s.incomeStreams:(isPro?[{id:'default',name:'Sales and income'}]:[]);
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  if(s.streakNotifications===undefined)s.streakNotifications=true;
   if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
   if(!isPro){pairCount=1;incomeStreams=[];}
   else{
@@ -2643,6 +2644,10 @@ async function init(){
   document.getElementById('f-date').value=todayStr();
   document.getElementById('streak-count').textContent=recordVisit();
   loadSettings();loadAllOpts();updatePairBtns();
+  if(LS.get(SETTINGS_KEY)==null||(LS.get(SETTINGS_KEY)||{}).streakNotifications===undefined){
+    saveSettings();
+    syncToServer({settings:getSettingsPayload()});
+  }
   renderPairCards();renderSettingsStreams();renderIncomeFormCards();
   loadEntryForSelectedDate();
   updateSubmissionStreakUI();
