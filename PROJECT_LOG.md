@@ -558,14 +558,108 @@ Admin could not set a member back to Basic from Pro (save appeared to do nothing
 
 ---
 
+## Phase 34 — Basic Member UX Refinements (v2.3.4)
+
+### Prompt
+Polish Basic tier UX: hide “+ Add new option” but keep Edit; remove upgrade banner; replace browser confirm on same-day resubmit with press-again on submit button; plain accountability chat text (no markdown); omit hidden reflection/income instead of showing “hidden”.
+
+### Changes Made
+- **`eod-tracker.html`:** `submitReplacePending` — first submit on existing date shows “Press again to replace entry”; Basic hides add-new in dropdown, keeps Edit; removed upgrade banner; submit no longer auto-saves options for Basic
+- **`lib/eod-channel-format.js`:** streak milestone messages without `**` / `_` markdown
+- **`admin.html`:** admin history omits hidden reflection/income rows instead of “hidden” label
+
+---
+
+## Phase 35 — Admin Tier Save Performance (v2.3.4)
+
+### Prompt
+Admin tier save felt slow and sometimes appeared to revert after save.
+
+### Changes Made
+- **`api/admin/user.js`:** tier PATCH returns `summary` without bulk `enrichUsersWithWhopNames` on every save
+- **`admin.html`:** `tierSaveInFlight` guard; optimistic `patchUserInList` + `updateTierDetailPanel` instead of full dashboard reload
+- **`lib/store.js`:** `setAdminTier` verify callback waits for persisted `adminTier` + Pro list
+
+### Verified
+- Tier save updates table and detail panel immediately without long wait
+
+---
+
+## Phase 36 — Splash Screen & Mobile Date Bar (v2.3.5)
+
+### Prompt
+Loading screen should say **VIP** (gold) above **EOD TRACKER**; date field overflowed on mobile.
+
+### Changes Made
+- **`eod-tracker.html`:** splash title VIP + EOD TRACKER; `.date-field-wrap` + WebKit date input rules for mobile overflow
+
+### Verified
+- Deployed v2.3.5
+
+---
+
+## Phase 37 — Personal Bests (v2.3.6–2.3.8)
+
+### Prompt
+Detect new records on action/KPI/sales/income; celebrate in app and accountability chat; show all-time bests table on Progress tab. Chat PB messages should not include numbers.
+
+### Changes Made
+- **`lib/personal-bests.js`:** `detectPersonalBests`, `buildPersonalBestsRows`, `formatPersonalBestsMessage`, `scanPriorBests`
+- **`personal-bests-ui.js`:** client mirror for Progress table + submit-time toast
+- **`lib/eod-channel-publish.js`:** second webhook post (`— Record`) when PBs detected; only when `entry.publish`
+- **`eod-tracker.html`:** PB celebration toast animation; Progress tab PB table at bottom
+- **`api/entries.js`:** passes full `entries` map into publish for PB comparison
+
+### Verified
+- Deployed through v2.3.8
+
+---
+
+## Phase 38 — Entry Override / Replace Fix (v2.3.9)
+
+### Prompt
+Override flow broken: warning showed and chat posted, but history did not update and personal bests were not detected on replace.
+
+### Root Cause
+- History not re-rendered after save; `submitReplacePending` cleared before validation; PB detection excluded same-day date without folding in the **previous** same-day entry as baseline
+
+### Changes Made
+- **`eod-tracker.html`:** `renderHistory()` (+ Progress refresh) after save; capture `previousEntry` before overwrite; defer clearing `submitReplacePending` until validation passes
+- **`lib/personal-bests.js`:** `foldEntryIntoBests` + `previousEntry` param on `detectPersonalBests`
+- **`personal-bests-ui.js`:** client `detectNewRecords` mirrors server baseline logic
+- **`api/entries.js` / `lib/eod-channel-publish.js`:** pass `previousEntry` from pre-merge store into publish
+
+### Verified
+- Deployed v2.3.9; committed `73b273f`
+
+---
+
+## Phase 39 — Chat Format & Press-Again Delete (v2.3.10)
+
+### Prompt
+Chat labels: colon after Reflection and Income; remove bullet points on sales/income lines. History delete should confirm via second press (like override), not `confirm()`.
+
+### Changes Made
+- **`lib/eod-channel-format.js`:** `Reflection:` and `Income:` section headers on own lines; reflection text on following line; income stream lines without `•` prefix
+- **`eod-tracker.html`:** `deleteConfirmPending` + “Press again to delete” on history card; inline `#history-status` for delete/sync messages (replaces `confirm` + `alert` on delete)
+
+### Remaining browser popups (member app)
+- `alert` — Edit options modal: “No saved options to edit yet.” / “Each name must be unique.”
+- **Admin (`admin.html`):** `confirm` on bulk + single member delete; `alert` on errors
+
+### Verified
+- Deployed v2.3.10; committed `d2196cd`
+
+---
+
 ## Current Architecture
 
 | Layer | Files |
 |-------|-------|
-| Member app | `eod-tracker.html`, `history-ui.js`, `streak-ui.js` |
+| Member app | `eod-tracker.html`, `history-ui.js`, `streak-ui.js`, `personal-bests-ui.js` |
 | Admin app | `admin.html`, `history-ui.js` |
 | API | `api/me.js`, `api/entries.js`, `api/version.js`, `api/config.js`, `api/storage-status.js`, `api/admin/users.js`, `api/admin/user.js`, `api/admin/seed.js`, `api/admin/reset-user.js` |
-| Server logic | `lib/store.js`, `lib/auth.js`, `lib/business-access.js`, `lib/company-resolve.js`, `lib/member-routing.js`, `lib/whop-roles.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js`, `lib/eod-channel-publish.js`, `lib/eod-channel-format.js`, `lib/eod-submission-streak.js`, `lib/streak-milestones.js`, `lib/whop-username-sync.js`, `lib/whop-usernames.js` |
+| Server logic | `lib/store.js`, `lib/auth.js`, `lib/business-access.js`, `lib/company-resolve.js`, `lib/member-routing.js`, `lib/whop-roles.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js`, `lib/eod-channel-publish.js`, `lib/eod-channel-format.js`, `lib/eod-submission-streak.js`, `lib/streak-milestones.js`, `lib/personal-bests.js`, `lib/whop-username-sync.js`, `lib/whop-usernames.js` |
 | Deploy | `vercel.json`, `deploy.ps1` |
 | Version | `version.js` → `lib/version.js` → `/api/version` (UI label loads from API) |
 | Post-update steps | `POST_UPDATE_CHECKLIST.md` |
@@ -595,7 +689,7 @@ Debug: `GET /api/storage-status?test=1`
 
 ## Current Version
 
-**v2.3.3** (June 2026)
+**v2.3.10** (June 2026)
 
 ## Pro vs Basic (Member Features)
 
@@ -605,6 +699,7 @@ Debug: `GET /api/storage-status?test=1`
 | Multiple action/KPI pairs | No | Yes (up to 3) |
 | Income streams | No | Yes (up to 3) |
 | Progress charts | No | Yes |
+| **Personal bests table** | No | Yes (Progress tab) |
 | **Saved action/KPI options** | No — type per entry | Yes — dropdown + targets |
 | Admin tier override | `adminTier` on server wins over Whop plan IDs |
 
@@ -640,6 +735,13 @@ Do **not** set `DEV_ADMIN=1` in production.
 - UI: streak badge in header, next-milestone hint, toast on milestone hit
 - Included in accountability chat webhook post when publish is enabled
 
+## Personal Bests (Pro metrics + Basic actions/KPIs)
+
+- Detected on submit when a value strictly exceeds the member’s prior all-time best (same-day replace folds in the **previous** entry for that date)
+- **In-app:** celebration toast on new records; all-time bests table at bottom of Progress tab (Pro)
+- **Chat:** second webhook message (`— Record`) with “new personal best” lines (no numbers); only when publish is enabled
+- Override/replace only counts as a PB when the new value beats the true all-time high
+
 ## Open Items
 
 - **`WHOP_PRO_PLAN_IDS` + product access API check** — JWT `plan_id` alone may not cover all membership types; add `WHOP_PRO_PRODUCT_ID` + `checkAccess` on `/api/me` for instant Pro after purchase
@@ -654,7 +756,9 @@ Do **not** set `DEV_ADMIN=1` in production.
 - ~~Cross-device sync~~ — server Blob storage + pull on load when Whop session present
 - ~~Saved action/KPI options (Pro only)~~ — client gate + server `options` patch blocked for Basic
 - ~~Admin tier downgrade~~ — `adminTier === 'basic'` respected in `/api/me` and `/api/entries`
+- ~~Entry override / replace~~ — history refresh + PB baseline with `previousEntry` (v2.3.9)
+- ~~Press-again delete in history~~ — replaces `confirm()` dialog (v2.3.10)
 
 ---
 
-*Last updated: Phase 33 — June 2026 (v2.3.3)*
+*Last updated: Phase 39 — June 2026 (v2.3.10)*
