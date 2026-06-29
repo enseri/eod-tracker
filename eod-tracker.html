@@ -826,10 +826,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/central-time.js?v=2.4.2"></script>
-<script src="/streak-ui.js?v=2.4.2"></script>
-<script src="/history-ui.js?v=2.4.2"></script>
-<script src="/personal-bests-ui.js?v=2.4.2"></script>
+<script src="/central-time.js?v=2.4.3"></script>
+<script src="/streak-ui.js?v=2.4.3"></script>
+<script src="/history-ui.js?v=2.4.3"></script>
+<script src="/personal-bests-ui.js?v=2.4.3"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -1300,18 +1300,19 @@ function streakNotificationsEnabled(){
   return s.streakNotifications!==false;
 }
 
-function recordVisit(){
+function recordVisit(opts){
+  opts=opts||{};
   var visits=LS.get(VISITS_KEY)||[],today=todayStr();
   var wasNew=!visits.includes(today);
   if(wasNew){visits.push(today);LS.set(VISITS_KEY,visits);}
   var streak=updateVisitStreakUI();
-  if(wasNew){
-    var hit=window.EodStreak?EodStreak.getStreakMilestone(streak):null;
+  var milestoneHit=wasNew&&window.EodStreak?EodStreak.getStreakMilestone(streak):null;
+  if(wasNew&&opts.sync!==false){
     syncToServer({visits:visits,settings:getSettingsPayload()}).then(function(){
-      if(hit)showMilestoneToast(hit);
+      if(milestoneHit)showMilestoneToast(milestoneHit);
     });
   }
-  return streak;
+  return{streak:streak,wasNew:wasNew,milestoneHit:milestoneHit};
 }
 
 /* SVGs */
@@ -1896,13 +1897,10 @@ async function submitEntry(){
         if(pb&&pb.ok&&pb.records&&pb.records.length){
           statusEl.textContent+=' Personal best'+(pb.records.length>1?'s':'')+' shared in chat.';
         }
-        if(syncResult.channel.milestone)showMilestoneToast(syncResult.channel.milestone);
       }else if(syncResult&&syncResult.channel&&!syncResult.channel.skipped){
         statusEl.textContent+=' Chat post failed — set WHOP_ACCOUNTABILITY_WEBHOOK_URL in Vercel.';
         statusEl.style.color='var(--danger)';
       }
-    }else if(syncResult&&syncResult.visitMilestone&&syncResult.visitMilestone.milestone){
-      showMilestoneToast(syncResult.visitMilestone.milestone);
     }
     startSubmitCooldown();
     renderHistory();
@@ -2643,17 +2641,18 @@ async function init(){
   applyTierLimits();
   renderTierUI();
   document.getElementById('f-date').value=todayStr();
-  document.getElementById('streak-count').textContent=recordVisit();
+  var visitInfo=recordVisit({sync:false});
+  document.getElementById('streak-count').textContent=visitInfo.streak;
   loadSettings();loadAllOpts();updatePairBtns();
   if(LS.get(SETTINGS_KEY)==null||(LS.get(SETTINGS_KEY)||{}).streakNotifications===undefined){
     saveSettings();
-    syncToServer({settings:getSettingsPayload()});
   }
   renderPairCards();renderSettingsStreams();renderIncomeFormCards();
   loadEntryForSelectedDate();
   updateSubmissionStreakUI();
   setSplashStatus('Syncing your data…');
-  await syncFullState();
+  var syncResult=await syncFullState();
+  if(visitInfo.wasNew&&visitInfo.milestoneHit)showMilestoneToast(visitInfo.milestoneHit);
   setSplashStatus('Almost ready…');
   hideAppSplash();
   document.getElementById('f-date').onchange=function(){

@@ -1,5 +1,5 @@
 const { getUserFromRequest } = require('../lib/auth');
-const { getUserRecord, updateUser, readStore, storageMode } = require('../lib/store');
+const { getUserRecord, updateUser, readStore, storageMode, claimStreakMilestoneNotification } = require('../lib/store');
 const { clampSettingsForTier, stripEntryForTier, isProTier } = require('../lib/tiers');
 const { resolveTierFromContext } = require('../lib/tier-resolve');
 const { parseJsonBody } = require('../lib/parse-body');
@@ -8,6 +8,7 @@ const { requireBusinessAccess } = require('../lib/business-access');
 const { syncWhopUsername } = require('../lib/whop-username-sync');
 const { publishEodToChannel, publishVisitStreakMilestone } = require('../lib/eod-channel-publish');
 const { calcStreak, todayStr } = require('../lib/analytics');
+const { getStreakMilestone } = require('../lib/streak-milestones');
 
 module.exports = async function handler(req, res) {
   try {
@@ -122,17 +123,28 @@ module.exports = async function handler(req, res) {
       let channel = null;
       let visitMilestone = null;
 
-      const prevVisits = new Set(existing.visits || []);
-      const visitsAddedToday =
-        Array.isArray(visits) &&
-        visits.some((d) => d && !prevVisits.has(d) && d === todayStr());
+      const today = todayStr();
+      const hadTodayBefore = (existing.visits || []).includes(today);
+      const hasTodayAfter = (updated.visits || []).includes(today);
+      const firstVisitToday = !hadTodayBefore && hasTodayAfter;
+      const milestone = firstVisitToday && streakNotifications ? getStreakMilestone(visitStreak) : null;
+      const milestoneNotifyKey = milestone ? `${milestone.days}@${today}` : null;
 
-      if (visitsAddedToday && streakNotifications) {
-        visitMilestone = await publishVisitStreakMilestone({
-          username: resolvedUsername,
-          visits: updated.visits,
-          streakNotifications,
-        });
+      if (firstVisitToday && streakNotifications && milestone) {
+        const claimed = await claimStreakMilestoneNotification(
+          companyId,
+          user.userId,
+          milestoneNotifyKey,
+        );
+        if (claimed) {
+          visitMilestone = await publishVisitStreakMilestone({
+            username: resolvedUsername,
+            visits: updated.visits,
+            streakNotifications,
+          });
+        } else {
+          visitMilestone = { skipped: true, reason: 'already_notified', streak: visitStreak, milestone };
+        }
       }
 
       if (date && merged[date]?.publish) {
