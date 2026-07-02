@@ -826,10 +826,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/central-time.js?v=2.4.3"></script>
-<script src="/streak-ui.js?v=2.4.3"></script>
-<script src="/history-ui.js?v=2.4.3"></script>
-<script src="/personal-bests-ui.js?v=2.4.3"></script>
+<script src="/central-time.js?v=2.5.0"></script>
+<script src="/streak-ui.js?v=2.5.0"></script>
+<script src="/history-ui.js?v=2.5.0"></script>
+<script src="/personal-bests-ui.js?v=2.5.0"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -966,6 +966,30 @@ function adoptUserId(newId){
   migrateStoragePrefix(oldPrefix,STORAGE_PREFIX);
 }
 
+function applyServerSettings(serverSettings){
+  if(!serverSettings)return;
+  var s=LS.get(SETTINGS_KEY)||{};
+  var defaultStreams=isPro?[{id:'default',name:'Sales and income'}]:[];
+  var localPair=Math.min(3,Math.max(1,Number(s.pairCount)||1));
+  var localStreams=Array.isArray(s.incomeStreams)&&s.incomeStreams.length?s.incomeStreams.slice(0,3):defaultStreams;
+  if(isPro){
+    if(serverSettings.pairCount!=null&&!isNaN(Number(serverSettings.pairCount))){
+      pairCount=Math.min(3,Math.max(1,Number(serverSettings.pairCount)));
+    }else pairCount=localPair;
+    if(Array.isArray(serverSettings.incomeStreams)&&serverSettings.incomeStreams.length){
+      incomeStreams=serverSettings.incomeStreams.slice(0,3);
+    }else incomeStreams=localStreams;
+  }else{
+    pairCount=1;incomeStreams=[];
+  }
+  if(serverSettings.streakNotifications!==undefined)s.streakNotifications=!!serverSettings.streakNotifications;
+  else if(s.streakNotifications===undefined)s.streakNotifications=true;
+  s.pairCount=pairCount;s.incomeStreams=incomeStreams;
+  LS.set(SETTINGS_KEY,s);
+  var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
+}
+
 async function pullFromServer(){
   try{
     var res=await apiFetch('/api/entries'+apiQuery());
@@ -984,18 +1008,7 @@ async function pullFromServer(){
       var vis=LS.get(VISITS_KEY)||[];
       LS.set(VISITS_KEY,[...new Set(vis.concat(data.visits))]);
     }
-    if(data.settings){
-      var s=LS.get(SETTINGS_KEY)||{};
-      if(data.settings.pairCount&&isPro)pairCount=data.settings.pairCount;
-      if(Array.isArray(data.settings.incomeStreams)&&data.settings.incomeStreams.length&&isPro){
-        incomeStreams=data.settings.incomeStreams;
-      }
-      if(data.settings.streakNotifications!==undefined)s.streakNotifications=data.settings.streakNotifications;
-      s.pairCount=pairCount;s.incomeStreams=incomeStreams;
-      LS.set(SETTINGS_KEY,s);
-      var streakNotifsEl=document.getElementById('settings-streak-notifs');
-      if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
-    }
+    if(data.settings)applyServerSettings(data.settings);
   }catch(e){console.warn('pullFromServer:',e.message);}
 }
 
@@ -1211,6 +1224,10 @@ function saveSettings(){
     incomeStreams:incomeStreams,
     streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:true
   });
+}
+function syncSettingsToServer(){
+  saveSettings();
+  return syncToServer({settings:getSettingsPayload()});
 }
 function getSettingsPayload(){
   var s=LS.get(SETTINGS_KEY)||{};
@@ -1546,16 +1563,17 @@ function renderSettingsStreams(){
   }).join('');
   listEl.querySelectorAll('.settings-stream-name').forEach(function(inp){
     inp.oninput=function(e){incomeStreams[Number(e.target.getAttribute('data-sidx'))].name=e.target.value;saveSettings();renderIncomeFormCards();};
+    inp.onchange=function(){syncSettingsToServer();};
   });
   listEl.querySelectorAll('.settings-stream-delete').forEach(function(btn){
-    btn.onclick=function(){incomeStreams.splice(Number(btn.getAttribute('data-sidx')),1);saveSettings();renderSettingsStreams();renderIncomeFormCards();};
+    btn.onclick=function(){incomeStreams.splice(Number(btn.getAttribute('data-sidx')),1);saveSettings();renderSettingsStreams();renderIncomeFormCards();syncSettingsToServer();};
   });
   if(incomeStreams.length<3){
     addRow.innerHTML='<div class="stream-add-card" id="ss-add-btn"><span>'+S.plus+'</span> Add income stream</div>';
     document.getElementById('ss-add-btn').onclick=function(){
       if(incomeStreams.length>=3)return;
       incomeStreams.push({id:'is_'+Date.now(),name:'Sales and income'});
-      saveSettings();renderSettingsStreams();renderIncomeFormCards();
+      saveSettings();renderSettingsStreams();renderIncomeFormCards();syncSettingsToServer();
     };
   }else{addRow.innerHTML='';}
 }
@@ -2684,7 +2702,9 @@ async function init(){
       if(!isPro&&Number(btn.getAttribute('data-count'))>1){showProFeatureGate('Multiple action / KPI pairs');return;}
       var n=Number(btn.getAttribute('data-count'));if(n===pairCount)return;
       pairCount=n;saveSettings();updatePairBtns();renderPairCards();
+      renderIncomeFormCards();
       loadEntryForSelectedDate();
+      syncSettingsToServer();
     };
   });
 }

@@ -1,7 +1,7 @@
 /** Quick smoke checks for server modules (run: node scripts/verify-app.js). */
 const assert = require('assert');
-const { todayStr, addDays, calcStreak, calcStreakFromDates } = require('../lib/central-time');
-const { calcStreak: analyticsStreak, sumIncomeAllTime } = require('../lib/analytics');
+const { todayStr, addDays, calcStreak, calcStreakFromDates, hoursUntilCentralMidnight } = require('../lib/central-time');
+const { calcStreak: analyticsStreak, sumIncomeAllTime, summarizeUser } = require('../lib/analytics');
 const { formatEodChannelMessage } = require('../lib/eod-channel-format');
 const { getStreakMilestone } = require('../lib/streak-milestones');
 const { detectPersonalBests } = require('../lib/personal-bests');
@@ -14,6 +14,24 @@ assert.equal(addDays('2025-06-15', 1), addDays(addDays('2025-06-15', 2), -1), 'a
 const visits = ['2025-06-25', '2025-06-26', '2025-06-27'];
 assert.equal(calcStreakFromDates(visits, '2025-06-27'), 3, 'central streak');
 assert.equal(analyticsStreak(visits), calcStreakFromDates(visits), 'analytics streak matches');
+
+const hLeft = hoursUntilCentralMidnight();
+assert.ok(hLeft >= 0 && hLeft <= 24, 'hours until CT midnight in range');
+
+const summary = summarizeUser('user_test', {
+  entries: { '2025-06-26': { pairs: [] } },
+  visits: ['2025-06-26'],
+}, {});
+assert.equal(summary.submittedToday, false, 'no EOD today');
+assert.equal(summary.atRisk, true, 'at risk when no EOD today');
+assert.ok(typeof summary.hoursUntilReset === 'number', 'hours until reset');
+
+const summaryDone = summarizeUser('user_test', {
+  entries: { [todayStr()]: { pairs: [] } },
+  visits: [todayStr()],
+}, {});
+assert.equal(summaryDone.submittedToday, true, 'EOD submitted today');
+assert.equal(summaryDone.atRisk, false, 'not at risk when submitted');
 
 const eod = formatEodChannelMessage({
   entry: {

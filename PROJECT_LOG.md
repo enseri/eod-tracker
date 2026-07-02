@@ -652,6 +652,23 @@ Chat labels: colon after Reflection and Income; remove bullet points on sales/in
 
 ---
 
+## Phase 40 — Settings Persistence & Admin Due Column (v2.5.0)
+
+### Prompt
+Fix Pro settings (pair count / income streams) being clobbered on server pull. Admin dashboard: show who has not submitted EOD today with orange countdown to Central midnight.
+
+### Changes Made
+- **`eod-tracker.html`:** `applyServerSettings()` merges server settings without overwriting local `pairCount` / `incomeStreams` when server omits them; `syncSettingsToServer()` on pair-count and income-stream changes
+- **`lib/central-time.js` / `central-time.js`:** `hoursUntilCentralMidnight()` for US Central calendar day boundary
+- **`lib/analytics.js`:** `submittedToday`, `hoursUntilReset`, `atRisk` on member summaries
+- **`admin.html`:** sortable **Due** column (green Done / orange `~Xh`); detail panel EOD-today line; filter labels clarified
+- **`scripts/verify-app.js`:** smoke tests for due fields and CT midnight helper
+
+### Verified
+- `node scripts/verify-app.js` passes
+
+---
+
 ## Current Architecture
 
 | Layer | Files |
@@ -761,4 +778,4 @@ Do **not** set `DEV_ADMIN=1` in production.
 
 ---
 
-*Last updated: Phase 39 — June 2026 (v2.3.10)*
+*Last updated: Phase 40 — June 2026 (v2.5.0)*

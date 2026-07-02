@@ -37,11 +37,36 @@
     return streak;
   }
 
+  function centralWallClock(now) {
+    var parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: APP_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now || new Date());
+    function get(type) {
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].type === type) return Number(parts[i].value) || 0;
+      }
+      return 0;
+    }
+    return { hours: get('hour'), minutes: get('minute'), seconds: get('second') };
+  }
+
+  function hoursUntilCentralMidnight(now) {
+    var clk = centralWallClock(now);
+    var elapsed = clk.hours * 3600 + clk.minutes * 60 + clk.seconds;
+    return Math.max(0, Math.ceil((86400 - elapsed) / 3600));
+  }
+
   global.CentralTime = {
     APP_TIMEZONE: APP_TIMEZONE,
     todayStr: todayStr,
     addDays: addDays,
     addOneDay: addOneDay,
     calcStreakFromDates: calcStreakFromDates,
+    centralWallClock: centralWallClock,
+    hoursUntilCentralMidnight: hoursUntilCentralMidnight,
   };
 })(typeof window !== 'undefined' ? window : global);
