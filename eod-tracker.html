@@ -826,10 +826,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <div class="pb-celebration-title">New personal best!</div>
   <div class="pb-celebration-list" id="pb-celebration-list"></div>
 </div>
-<script src="/central-time.js?v=2.5.0"></script>
-<script src="/streak-ui.js?v=2.5.0"></script>
-<script src="/history-ui.js?v=2.5.0"></script>
-<script src="/personal-bests-ui.js?v=2.5.0"></script>
+<script src="/central-time.js?v=2.5.1"></script>
+<script src="/streak-ui.js?v=2.5.1"></script>
+<script src="/history-ui.js?v=2.5.1"></script>
+<script src="/personal-bests-ui.js?v=2.5.1"></script>
 <script>
 var STORAGE_PREFIX='';
 function initStoragePrefix(){
@@ -842,7 +842,7 @@ var LS={
   get:function(k){try{var v=localStorage.getItem(STORAGE_PREFIX+k);return v!==null?JSON.parse(v):null;}catch(e){return null;}},
   set:function(k,v){try{localStorage.setItem(STORAGE_PREFIX+k,JSON.stringify(v));return true;}catch(e){return false;}}
 };
-var SETTINGS_KEY='eod_settings',ENTRIES_KEY='eod_entries',VISITS_KEY='eod_visits',ADD_NEW='__add_new__';
+var SETTINGS_KEY='eod_settings',ENTRIES_KEY='eod_entries',VISITS_KEY='eod_visits',MILESTONE_SHOWN_KEY='eod_milestone_shown',ADD_NEW='__add_new__';
 var ORDINALS=['1st','2nd','3rd'];
 var pairCount=1,optionLists={},incomeStreams=[{id:'default',name:'Sales and income'}];
 var chartStateStore={},CHART_DEFAULT_DAYS=30;
@@ -924,7 +924,7 @@ function apiQuery(){
 
 function migrateStoragePrefix(oldPrefix,newPrefix){
   if(!oldPrefix||oldPrefix===newPrefix)return;
-  var keys=['eod_settings','eod_entries','eod_visits'];
+  var keys=['eod_settings','eod_entries','eod_visits','eod_milestone_shown'];
   for(var i=0;i<3;i++)keys.push('eod_opts_'+i);
   keys.forEach(function(k){
     var v=localStorage.getItem(oldPrefix+k);
@@ -1009,6 +1009,7 @@ async function pullFromServer(){
       LS.set(VISITS_KEY,[...new Set(vis.concat(data.visits))]);
     }
     if(data.settings)applyServerSettings(data.settings);
+    if(Array.isArray(data.streakMilestoneNotifiedKeys))syncServerMilestoneKeys(data.streakMilestoneNotifiedKeys);
   }catch(e){console.warn('pullFromServer:',e.message);}
 }
 
@@ -1115,12 +1116,14 @@ async function syncToServer(payload){
   }catch(e){console.warn('Server sync:',e.message);return null;}
 }
 
-async function syncFullState(){
+async function syncFullState(opts){
+  opts=opts||{};
   var all=LS.get(ENTRIES_KEY)||{};
-  if(!Object.keys(all).length&&!((LS.get(VISITS_KEY)||[]).length))return;
+  var visits=LS.get(VISITS_KEY)||[];
+  if(!Object.keys(all).length&&!visits.length&&!opts.forceVisitSync)return null;
   return syncToServer({
     entries:all,
-    visits:LS.get(VISITS_KEY)||[],
+    visits:visits,
     settings:getSettingsPayload(),
     username:userProfile&&userProfile.username?userProfile.username:null
   });
@@ -1273,6 +1276,28 @@ function updateVisitStreakUI(asOfDate){
 }
 function updateSubmissionStreakUI(asOfDate){return updateVisitStreakUI(asOfDate);}
 
+function getMilestoneNotifyKey(milestone,asOfDate){
+  if(!milestone||milestone.days==null)return null;
+  return milestone.days+'@'+(asOfDate||todayStr());
+}
+function getShownMilestoneKeys(){
+  var keys=LS.get(MILESTONE_SHOWN_KEY);
+  return Array.isArray(keys)?keys:[];
+}
+function markMilestoneShown(notifyKey){
+  if(!notifyKey)return;
+  var keys=getShownMilestoneKeys();
+  if(keys.indexOf(notifyKey)<0){keys.push(notifyKey);LS.set(MILESTONE_SHOWN_KEY,keys);}
+}
+function isMilestoneShown(notifyKey){
+  return!!(notifyKey&&getShownMilestoneKeys().indexOf(notifyKey)>=0);
+}
+function syncServerMilestoneKeys(serverKeys){
+  if(!Array.isArray(serverKeys)||!serverKeys.length)return;
+  var keys=getShownMilestoneKeys();
+  serverKeys.forEach(function(k){if(k&&keys.indexOf(k)<0)keys.push(k);});
+  LS.set(MILESTONE_SHOWN_KEY,keys);
+}
 function showMilestoneToast(milestone){
   if(!milestone)return;
   var el=document.getElementById('streak-milestone-toast');
@@ -1281,6 +1306,17 @@ function showMilestoneToast(milestone){
   el.querySelector('.sm-msg').textContent=milestone.message;
   el.classList.add('visible');
   setTimeout(function(){el.classList.remove('visible');},5500);
+}
+function maybeShowMilestoneToast(milestone,syncResult){
+  if(!milestone||!streakNotificationsEnabled())return false;
+  var notifyKey=getMilestoneNotifyKey(milestone);
+  if(!notifyKey)return false;
+  if(isMilestoneShown(notifyKey))return false;
+  var vm=syncResult&&syncResult.visitMilestone;
+  if(vm&&vm.skipped&&vm.reason==='already_notified'){markMilestoneShown(notifyKey);return false;}
+  markMilestoneShown(notifyKey);
+  showMilestoneToast(milestone);
+  return true;
 }
 
 function pbRecordLabel(r){
@@ -1325,9 +1361,7 @@ function recordVisit(opts){
   var streak=updateVisitStreakUI();
   var milestoneHit=wasNew&&window.EodStreak?EodStreak.getStreakMilestone(streak):null;
   if(wasNew&&opts.sync!==false){
-    syncToServer({visits:visits,settings:getSettingsPayload()}).then(function(){
-      if(milestoneHit)showMilestoneToast(milestoneHit);
-    });
+    syncToServer({visits:visits,settings:getSettingsPayload()});
   }
   return{streak:streak,wasNew:wasNew,milestoneHit:milestoneHit};
 }
@@ -2669,8 +2703,8 @@ async function init(){
   loadEntryForSelectedDate();
   updateSubmissionStreakUI();
   setSplashStatus('Syncing your data…');
-  var syncResult=await syncFullState();
-  if(visitInfo.wasNew&&visitInfo.milestoneHit)showMilestoneToast(visitInfo.milestoneHit);
+  var syncResult=await syncFullState({forceVisitSync:visitInfo.wasNew});
+  if(visitInfo.wasNew&&visitInfo.milestoneHit)maybeShowMilestoneToast(visitInfo.milestoneHit,syncResult);
   setSplashStatus('Almost ready…');
   hideAppSplash();
   document.getElementById('f-date').onchange=function(){

@@ -3,7 +3,7 @@ const assert = require('assert');
 const { todayStr, addDays, calcStreak, calcStreakFromDates, hoursUntilCentralMidnight } = require('../lib/central-time');
 const { calcStreak: analyticsStreak, sumIncomeAllTime, summarizeUser } = require('../lib/analytics');
 const { formatEodChannelMessage } = require('../lib/eod-channel-format');
-const { getStreakMilestone } = require('../lib/streak-milestones');
+const { getStreakMilestone, milestoneNotifyKey } = require('../lib/streak-milestones');
 const { detectPersonalBests } = require('../lib/personal-bests');
 const { clampSettingsForTier } = require('../lib/tiers');
 const { defaultUser } = require('../lib/store');
@@ -47,6 +47,7 @@ const eod = formatEodChannelMessage({
 });
 assert.ok(eod.includes('Current streak: 7'), 'EOD includes streak count');
 assert.ok(!eod.includes(getStreakMilestone(7).message), 'EOD excludes milestone celebration text');
+assert.equal(milestoneNotifyKey(getStreakMilestone(1), '2026-06-25'), '1@2026-06-25', 'milestone notify key');
 
 const entries = {
   '2025-06-01': { incomeStreams: [{ income: 50 }] },
