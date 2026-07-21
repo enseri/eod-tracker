@@ -758,9 +758,10 @@ Symptom: EOD posted to chat on Jul 19 but admin shows Last EOD Jul 18, Entries 1
 - **Fix:** admin `fmtStreakCell` and member `updateVisitStreakUI` now use the tiered emoji (🌱 <30 → 🔥 30 → 🌋 90 → ☄️ 180 → 🗿 365). `scripts/seed-dev.js` rewritten with 7 members whose streaks span every tier (5/2/0/35/95/210/400) so the icons are visibly different in the dashboard.
 - Note: this overrides the manager's earlier "member portal always fire" aside in favor of his detailed evolving-emoji spec — one-line revert if he prefers always-fire on the portal.
 
-### Follow-up (v2.7.0 release) — realistic income scale
+### Follow-up (v2.7.1) — realistic income scale
 - **Prompt:** nobody on this app makes over $1M/mo — shift the ladder down so the top rank is $5K/mo.
 - **`lib/income-ranks.js`:** `MONTHLY_RANKS` rescaled to Starter $100 → Closer $250 → Earner $500 → Heavyweight $1K → Rainmaker $1.5K → Mogul $2K → Titan $3K → Magnate $4K → **Empire $5K/mo** (top). Monthly broadcast milestones now $100→$5K; all-time total milestones trimmed to $1K→$1M (accrues over time). Tests + `seed-dev.js` incomes updated to match.
+- **Version:** `version.js` → `2.7.1`.
 
 ### Verified
 - `node scripts/verify-app.js` passes; inline-script syntax check clean for both HTML files.
@@ -879,4 +880,4 @@ Do **not** set `DEV_ADMIN=1` in production.
 
 ---
 
-*Last updated: Phase 43 — July 2026 (released v2.7.0)*
+*Last updated: Phase 43 — July 2026 (released v2.7.1)*
