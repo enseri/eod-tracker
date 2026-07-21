@@ -5,6 +5,7 @@ const { enrichUsersWithWhopNames } = require('../../lib/whop-usernames');
 const { parseJsonBody } = require('../../lib/parse-body');
 const { APP_VERSION } = require('../../lib/version');
 const { memberTrackerPath } = require('../../lib/member-routing');
+const { MONTHLY_RANKS } = require('../../lib/income-ranks');
 
 async function deleteMany(companyId, userIds) {
   return deleteUsers(companyId, userIds);
@@ -60,6 +61,7 @@ module.exports = async function handler(req, res) {
       ...summary,
       companyId,
       proUserIds: store.proUserIds || [],
+      ranks: MONTHLY_RANKS,
       storageMode: storageMode(),
       generatedAt: new Date().toISOString(),
       version: APP_VERSION,

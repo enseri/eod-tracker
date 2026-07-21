@@ -669,6 +669,102 @@ Fix Pro settings (pair count / income streams) being clobbered on server pull. A
 
 ---
 
+## Phase 41 — Manager Review: Streak Fix, Income Ranks, Verification & Chat Rewrite (v2.6.0)
+
+### Prompt
+Manager feedback after weeks of use: (1) can't see missing entries at a glance in admin; (2) member overview streak shows 0 at midnight until they submit; (3) flip history Action bar left / KPI bar right; (4) optional broadcast of total-income milestones + always-on monthly income records (MTD); (5) monthly income rank tags with colored names, earned only after 2 consecutive months, never downgraded; (6) admin "Income verified" checkbox (manual, green check, doesn't reset on every entry); (7) verification gates the rank grant + record broadcast, and a new record resets the checkbox; admin can also change ranks manually; (8) human-readable EOD chat message with per-option verb + "(s)" toggle; (9) simpler streak announcement; (10) native rank tag next to name in Whop chat if possible.
+
+### Decisions (with Emmanuel)
+- Overview streak stays **visit-based**; only the midnight reset-to-0 bug is fixed.
+- Ranks are **permanent once earned** (achievement model) — never downgraded.
+- Rank names use a wealth ladder (military names were just an example): Starter → Closer → **Earner** → **Heavyweight** → Rainmaker → Mogul → Titan → Magnate → Empire.
+- Chat rank tag: research first → **not supported** by Whop API → inline message prefix + always-on admin-panel tag.
+
+### Root cause (streak bug)
+`calcStreakFromDates` started counting at *today* and returned 0 the moment today wasn't present, so every member read 0 from Central midnight until they submitted.
+
+### Changes Made
+- **`lib/central-time.js`:** `calcStreakFromDates` now holds the streak from **yesterday** when today has no entry yet — streak only reads 0 after a full day is truly missed. Lets admin spot who's about to lose a streak all day.
+- **`lib/income-ranks.js` (new):** MTD monthly income, rank tiers (9, colored), monthly ($100→$5M/mo) + total ($1K→$100M) milestone ladders, `qualifiedRank` (2-consecutive-month rule), record detection, and broadcast message formatters.
+- **`lib/income-verify.js` (new):** per-user income state (`incomeVerified`, `incomeGrantedRank`, `incomeRankOverride`, `incomeGrantedTotal/MonthlyMilestone`, `incomePending`). New record → holds (verified=false); admin verify → advances granted rank + fires broadcasts; new record resets and re-holds. `displayRank` = override ?? granted.
+- **`lib/eod-channel-format.js`:** rewritten to human-readable adlib ("@user is on fire today 🔥 … 5/5 Calls were completed and 2/2 Leads were reached. They made 1 sale today and $X in income. 💰 … Reflection: …"), zero-actions fallback ("showed up today 🙏"), praise based on actions/KPIs not money, per-option verb + "(s)" plural, inline rank tag prefix.
+- **`lib/eod-channel-publish.js`:** simplified streak post ("@user just hit a X-day streak! 🔥\ncatchphrase"); `publishIncomeRecords` for gated income broadcasts; passes rank into EOD post.
+- **`lib/analytics.js`:** member summary adds `recentDays` (14-day strip), `incomeThisMonth` (MTD), and income/rank/verified fields.
+- **`api/entries.js`:** detects income records on submit (holds verification) and passes display rank into the chat post.
+- **`api/admin/user.js`:** PATCH accepts `incomeVerified` (fires broadcasts + grants rank on verify) and `rankOverride` (manual rank). **`api/admin/users.js`:** exposes the rank ladder.
+- **`admin.html`:** "Last 14d" dot strip (green submitted / red missed / dim pre-signup), "Income Verified" column (click to toggle, green check / ⏳ pending), colored member name + rank badge, and Income & rank controls (verify checkbox + rank override dropdown) in the detail panel.
+- **`eod-tracker.html`:** Pro settings checkbox to broadcast total-income milestones (monthly always on); edit modal gains a chat-wording verb picker + "(s)" toggle per option, carried onto each pair at submit.
+- **`history-ui.js`:** Action bar now renders left, KPI bar right (member + admin).
+- **Local test harness:** `scripts/dev-server.js` (`npm run dev`) — zero-dep server running the real API handlers against file storage with `DEV_ADMIN=1`, plus a captured accountability-chat feed at `/__feed` so every EOD/streak/income message is viewable without a live webhook. `npm test` runs `scripts/verify-app.js` (extended with streak, income-rank, and verification-gate unit tests).
+
+### Whop native chat tag (item 10) — findings
+Whop's Create Message API takes Markdown `content` + author `user` only; no per-message badge/role field. Native badges are tied to Whop roles/access levels, not arbitrary tags. Decision: inline prefix in the message (`[Earner · $10K/mo]`) + colored name/tag in the admin panel. A true native badge would require managing Whop roles per rank tier — deferred.
+
+### Verified
+- `node scripts/verify-app.js` passes (streak hold, MTD, 2-month rank rule, milestone detection, verification gate, override).
+- End-to-end via dev server: member submit → EOD + streak posts; income record held until admin verify → total/monthly/rank broadcasts fired; rank override works.
+- Not yet committed/pushed — left for local review, then deploy per `POST_UPDATE_CHECKLIST.md`.
+
+### Open follow-ups
+- Verb/"(s)" wording is offered on both action and KPI options; confirm the exact defaults with the manager.
+- Consider whether the new gated income broadcasts should replace or coexist with existing per-metric personal-best posts (currently coexist).
+
+---
+
+## Phase 42 — Review Round 2: Streak-in-EOD, Inline PBs, Selector Bug, Dev Seed (v2.6.1)
+
+### Prompts (manager voice notes + chat)
+- Total-income-milestone broadcast checkbox belongs in **member settings** (privacy for people who don't want to reveal earnings) — confirmed, already there.
+- Monthly income is fine to broadcast for everyone; broadcast the **first time** they hit a monthly tier (e.g. $10K/mo). Rank/tag only after **2 months in a row** (broadcast first hit, grant tag on the second) — confirmed matches build.
+- **Verification reset:** only a new **total** or **monthly** income record resets `incomeVerified`; **daily** income records do **not** (they happen too often). Decision confirmed — the gate ignores daily PBs.
+- **Remove the separate streak-milestone chat message.** Put the streak back **inside** the daily EOD post with an emoji that grows with the number.
+- **Remove the separate "new personal best" chat message.** Annotate PBs **inline** as `(new best)` in the EOD post.
+- **Member-portal streak**: make it a big, bold, **orange** number + "streak" + fire emoji (drop the mixed music/✨ emojis).
+- **Bug:** action/KPI selectors don't stay on the last-used option — always load the last option in the list.
+- **Bug:** `@heydedriak` — second EOD not recorded; admin shows Entries 1 while Streak 2 / "expiring soon".
+
+### Changes Made
+- **`lib/streak-milestones.js` + `streak-ui.js`:** `streakEmoji` now tiers by number — 🌱 (<30) → 🔥 (30) → 🌋 (90) → ☄️ (180) → 🗿 (365).
+- **`lib/eod-channel-format.js`:** streak line re-added to the EOD post (`N-day streak <emoji>`); personal bests annotated inline as `(new best)` on the matching action/KPI/income segment; plural toggle now emits literal `"(s)"` (avoids "sents"/"memberss").
+- **`lib/eod-channel-publish.js` + `api/entries.js`:** removed the separate streak-milestone post and the separate personal-best post; PBs are detected and passed into the single EOD message. Trimmed now-unused helpers/imports.
+- **`eod-tracker.html`:** last-used action/KPI selection persisted per pair (`eod_last_sel`) and restored on load (was defaulting to the last list item); streak badge restyled to a big orange number + "streak" + 🔥; edit-modal "(s)" label updated.
+- **`scripts/seed-dev.js` (`npm run seed:dev`):** writes 5 rich sample members to the local file store — a pending-verification Earner, a verified Mogul, an at-risk-but-streak-held member (streak-fix demo), a gap-heavy member for the strip, and a done-today member.
+
+### `@heydedriak` lost-entry — investigation
+Symptom: EOD posted to chat on Jul 19 but admin shows Last EOD Jul 18, Entries 1, Streak 2, "expiring soon". Since the chat post only fires **after** the entry save succeeds, the Jul 19 entry **was** saved, then disappeared. The state (entry gone, visit kept → streak 2, entries 1) is exactly what happens when an **EOD is deleted from history** (the entry is removed but the visit is not). Most likely an accidental "press again to delete" on mobile; a Blob write failure would have thrown before the chat post, so that's ruled out. Root of the confusion is that **Streak is visit-based** (days the app was opened) while **Entries** counts submissions — so they can legitimately differ. **Recommend deciding with the manager:** (a) switch the overview streak to **submission-based** so it can't outrun entries, and/or (b) make history-delete also drop that day's visit. Not changed yet — needs his call. Reproduce locally: seed a member, submit an EOD, then delete it from History and watch streak vs entries in the admin panel.
+
+### Verified
+- `node scripts/verify-app.js` passes (adds streak-emoji tiers, streak line, inline `(new best)`).
+- Live dev-server run against seeded data: admin rows correct (pending ⏳, Mogul ✅, at-risk streak held); verifying a member fires exactly the total+monthly+rank broadcasts; a member submit posts **one** EOD message with the streak line + inline `(new best)` and **no** separate streak/PB messages.
+- Not committed/pushed — local testing only.
+
+---
+
+## Phase 43 — Admin QOL Polish + Mobile (Whop app) + Streak Clarity (v2.6.2)
+
+### Prompts
+- The Last-14D strip looked misaligned; make it look as intended.
+- QOL pass on the admin dashboard; ensure it looks good in the **Whop mobile app**.
+- Clearer distinction between the streak **number of days** and the **fire symbol** on the member dashboard.
+
+### Changes Made
+- **`admin.html` — 14-day strip:** every cell now has a faint visible border so all 14 slots read as one aligned track (the near-invisible pre-signup cells were what made rows look ragged). Submitted = **green** (`--ok`), missed = red, before-signup = dim, today = a `box-shadow` ring (no more `outline-offset` wobble). Added a small legend under the table.
+- **`admin.html` — QOL:** streak cell colored by health (green if done today, orange if at risk) with a fire icon; `⏳ pending` cue next to the member name when income awaits verification; relative "Last EOD" dates ("Today / Yesterday / N days ago"); summary chips now include **At risk** and **Pending verify** (replaced the less-actionable Missed-7d card).
+- **`admin.html` — mobile:** at ≤640px the members table collapses into stacked **cards** (labels via `data-label`, no horizontal scroll) so it's usable inside the Whop mobile iframe.
+- **`eod-tracker.html` — streak indicator:** fire moved into its own circular chip on the left, clearly separated from the big orange day count + "DAY STREAK" label — so the number and the symbol no longer blur together.
+
+### Follow-up (v2.6.3) — streak emoji always fire
+- **Bug:** the tiered streak emoji only ran in the chat message; the admin cell and member badge both **hardcoded 🔥**, so every UI streak looked identical. Compounded by seed data where all streaks were <30 (all seedlings anyway).
+- **Fix:** admin `fmtStreakCell` and member `updateVisitStreakUI` now use the tiered emoji (🌱 <30 → 🔥 30 → 🌋 90 → ☄️ 180 → 🗿 365). `scripts/seed-dev.js` rewritten with 7 members whose streaks span every tier (5/2/0/35/95/210/400) so the icons are visibly different in the dashboard.
+- Note: this overrides the manager's earlier "member portal always fire" aside in favor of his detailed evolving-emoji spec — one-line revert if he prefers always-fire on the portal.
+
+### Verified
+- `node scripts/verify-app.js` passes; inline-script syntax check clean for both HTML files.
+- Live dev-server render against seeded data: admin returns 200 with legend + mobile CSS present; member app has the new streak markup.
+- `heydedriak` note: re-examined — **not confidently a bug**; most likely an accidental history-delete (entry removed, visit kept → streak > entries). Root confusion is Streak (visits) vs Entries (submissions). Recommend deciding: submission-based streak and/or delete-drops-visit. Not changed pending manager's call.
+
+---
+
 ## Current Architecture
 
 | Layer | Files |
@@ -676,11 +772,12 @@ Fix Pro settings (pair count / income streams) being clobbered on server pull. A
 | Member app | `eod-tracker.html`, `history-ui.js`, `streak-ui.js`, `personal-bests-ui.js` |
 | Admin app | `admin.html`, `history-ui.js` |
 | API | `api/me.js`, `api/entries.js`, `api/version.js`, `api/config.js`, `api/storage-status.js`, `api/admin/users.js`, `api/admin/user.js`, `api/admin/seed.js`, `api/admin/reset-user.js` |
-| Server logic | `lib/store.js`, `lib/auth.js`, `lib/business-access.js`, `lib/company-resolve.js`, `lib/member-routing.js`, `lib/whop-roles.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js`, `lib/eod-channel-publish.js`, `lib/eod-channel-format.js`, `lib/eod-submission-streak.js`, `lib/streak-milestones.js`, `lib/personal-bests.js`, `lib/whop-username-sync.js`, `lib/whop-usernames.js` |
+| Server logic | `lib/store.js`, `lib/auth.js`, `lib/business-access.js`, `lib/company-resolve.js`, `lib/member-routing.js`, `lib/whop-roles.js`, `lib/tiers.js`, `lib/tier-resolve.js`, `lib/analytics.js`, `lib/parse-body.js`, `lib/eod-channel-publish.js`, `lib/eod-channel-format.js`, `lib/eod-submission-streak.js`, `lib/streak-milestones.js`, `lib/personal-bests.js`, `lib/income-ranks.js`, `lib/income-verify.js`, `lib/whop-username-sync.js`, `lib/whop-usernames.js` |
 | Deploy | `vercel.json`, `deploy.ps1` |
 | Version | `version.js` → `lib/version.js` → `/api/version` (UI label loads from API) |
 | Post-update steps | `POST_UPDATE_CHECKLIST.md` |
 | Project history | `PROJECT_LOG.md` |
+| Local testing | `scripts/dev-server.js` (`npm run dev` → localhost + captured chat feed), `scripts/seed-dev.js` (`npm run seed:dev` → sample members), `scripts/verify-app.js` (`npm test`) |
 | Test data seed | `scripts/seed-test-users.js`, `scripts/test-bulk-delete.js`, `scripts/reset-user-to-seed.js` |
 
 ## Storage (Production)
@@ -706,7 +803,7 @@ Debug: `GET /api/storage-status?test=1`
 
 ## Current Version
 
-**v2.3.10** (June 2026)
+**v2.7.0** (July 2026) — release bundling Phases 41–43 (income ranks + verification, human-readable chat, streak fix, admin QOL, mobile)
 
 ## Pro vs Basic (Member Features)
 
@@ -778,4 +875,4 @@ Do **not** set `DEV_ADMIN=1` in production.
 
 ---
 
-*Last updated: Phase 40 — June 2026 (v2.5.0)*
+*Last updated: Phase 43 — July 2026 (released v2.7.0)*

@@ -11,6 +11,7 @@
 :root{
   --bg:#0f0a1e;--card:#1e1535;--card2:#251c3d;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.13);
   --text:#f0ecff;--text2:#9b8fc0;--text3:#6b5f8a;--gold:#f5c842;--danger:#f87171;--success:#a78bfa;
+  --ok:#4ade80;--miss:#f8737a;--warn:#f5a742;
   --radius:12px;--radius-sm:8px;
 }
 html,body{min-height:100%;overflow-x:hidden;background-color:var(--bg);}
@@ -45,7 +46,7 @@ h1{font-size:20px;font-weight:800;}
 }
 .view-switch-btn:hover{border-color:var(--gold);color:var(--gold);}
 .view-switch-btn svg{flex-shrink:0;}
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
 .stat{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;}
 .stat-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;}
 .stat-val{font-size:24px;font-weight:800;color:var(--gold);}
@@ -93,6 +94,31 @@ tr.active td{background:rgba(245,200,66,0.06);}
 .status{font-size:13px;color:var(--text2);padding:16px;}
 .status.error{color:var(--danger);}
 .detail{padding:16px;}
+/* Missing-entry dot strip — 14 equal cells form an aligned track (item 1) */
+.day-strip{display:inline-flex;gap:3px;align-items:center;}
+.day-dot{width:9px;height:15px;border-radius:3px;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);}
+.day-dot.sub{background:var(--ok);border-color:transparent;}
+.day-dot.miss{background:rgba(248,115,122,0.55);border-color:transparent;}
+.day-dot.untracked{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.04);}
+.day-dot.today{box-shadow:0 0 0 2px var(--gold);} /* ring, no layout shift */
+.strip-legend{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text3);padding:8px 16px;flex-wrap:wrap;}
+.strip-legend .lg{display:inline-flex;gap:5px;align-items:center;}
+.strip-legend .lg i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+.strip-legend .lg .g{background:var(--ok);}
+.strip-legend .lg .r{background:rgba(248,115,122,0.55);}
+.strip-legend .lg .d{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);}
+.strip-legend .lg .t{box-shadow:0 0 0 2px var(--gold);background:transparent;}
+/* Rank tag (items 5) */
+.rank-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.02em;border:1px solid currentColor;margin-left:6px;vertical-align:middle;white-space:nowrap;}
+.rank-name{font-weight:800;}
+.rank-pending{color:var(--gold);font-size:10px;margin-left:6px;}
+/* Income verified column (item 6) */
+.verify-cell{text-align:center;cursor:pointer;user-select:none;font-size:16px;line-height:1;}
+.verify-cell.on{filter:none;}
+.verify-cell.off{opacity:.35;}
+.verify-cell.pending{opacity:1;}
+.verify-toggle{display:inline-flex;align-items:center;gap:8px;}
+.verify-toggle input{width:16px;height:16px;accent-color:var(--success,#4ade80);}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
 .detail-item{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
 .detail-item span{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
@@ -302,6 +328,21 @@ th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
   .stats{grid-template-columns:repeat(2,1fr);}
   .layout{grid-template-columns:1fr;}
 }
+/* Whop mobile app: turn the members table into stacked cards (no h-scroll) */
+@media(max-width:640px){
+  .table-wrap{max-height:none;overflow:visible;}
+  table thead{display:none;}
+  table tbody{display:block;}
+  table tbody tr{display:block;position:relative;margin:0 0 10px;padding:10px 12px 8px;border:1px solid var(--border);border-radius:12px;background:var(--card2);}
+  table tbody tr.active{border-color:var(--gold);}
+  table tbody td{display:flex;justify-content:space-between;align-items:center;gap:12px;border:none;padding:6px 0;text-align:right;}
+  table tbody td[data-label]::before{content:attr(data-label);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;text-align:left;flex:0 0 auto;font-weight:600;}
+  table tbody td.member-col{display:block;text-align:left;padding:0 34px 8px 0;border-bottom:1px solid var(--border);margin-bottom:4px;}
+  table tbody td.chk-col{position:absolute;top:10px;right:8px;padding:0;}
+  table tbody td.act-col{justify-content:flex-end;padding-top:8px;}
+  table tbody td.strip-col .day-strip{flex-wrap:wrap;justify-content:flex-end;}
+  table tbody tr td.status{display:block;text-align:center;}
+}
 .version-label{
   position:fixed;bottom:14px;left:16px;z-index:9999;
   font-size:11px;font-weight:600;color:var(--text2);
@@ -347,7 +388,8 @@ th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
     <div class="stat"><div class="stat-lbl">Members</div><div class="stat-val" id="s-members">—</div></div>
     <div class="stat"><div class="stat-lbl">EOD today</div><div class="stat-val" id="s-active">—</div></div>
     <div class="stat"><div class="stat-lbl">Avg streak</div><div class="stat-val" id="s-streak">—</div></div>
-    <div class="stat"><div class="stat-lbl">Missed (7d)</div><div class="stat-val" id="s-missed">—</div></div>
+    <div class="stat"><div class="stat-lbl">At risk</div><div class="stat-val" id="s-atrisk">—</div></div>
+    <div class="stat"><div class="stat-lbl">Pending verify</div><div class="stat-val" id="s-pending">—</div></div>
     <div class="stat"><div class="stat-lbl">Pro members</div><div class="stat-val" id="s-pro">—</div></div>
   </div>
 
@@ -384,17 +426,26 @@ th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
               <th class="sortable" data-sort="tier">Tier</th>
               <th class="sortable" data-sort="streak">Streak</th>
               <th class="sortable due-col" data-sort="hoursUntilReset">Due</th>
+              <th>Last 14d</th>
               <th class="sortable" data-sort="lastEntryDate">Last EOD</th>
               <th class="sortable" data-sort="missedLast7">Missed 7d</th>
               <th class="sortable" data-sort="totalEntries">Entries</th>
               <th class="sortable" data-sort="incomeAllTime">Income (all time)</th>
+              <th class="sortable" data-sort="incomeVerified" title="Admin-verified income">Verified</th>
               <th class="act-col"></th>
             </tr>
           </thead>
           <tbody id="users-body">
-            <tr><td colspan="10" class="status">Loading members...</td></tr>
+            <tr><td colspan="12" class="status">Loading members...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="strip-legend">
+        <span>Last 14 days:</span>
+        <span class="lg"><i class="g"></i> submitted</span>
+        <span class="lg"><i class="r"></i> missed</span>
+        <span class="lg"><i class="d"></i> before signup</span>
+        <span class="lg"><i class="t"></i> today</span>
       </div>
     </div>
 
@@ -410,6 +461,7 @@ th.act-col,td.act-col{width:72px;text-align:right;white-space:nowrap;}
 <script src="/history-ui.js?v=2.3.1"></script>
 <script>
 var allUsers=[],selectedUserId=null,selectedForDelete={},dashboardBusy=false,refreshTimer=null,tierSaveInFlight=false;
+var RANKS=[],verifySaveInFlight={};
 var tableSort={column:'lastEntryDate',dir:'desc'};
 
 function isLocalDev(){
@@ -564,7 +616,7 @@ function updateSortHeaders(){
     var col=th.getAttribute('data-sort');
     var active=col===tableSort.column;
     th.classList.toggle('is-sorted',active);
-    var labels={username:'Member',tier:'Tier',streak:'Streak',hoursUntilReset:'Due',lastEntryDate:'Last EOD',missedLast7:'Missed 7d',totalEntries:'Entries',incomeAllTime:'Income (all time)'};
+    var labels={username:'Member',tier:'Tier',streak:'Streak',hoursUntilReset:'Due',lastEntryDate:'Last EOD',missedLast7:'Missed 7d',totalEntries:'Entries',incomeAllTime:'Income (all time)',incomeVerified:'Verified'};
     var label=labels[col]||col;
     var ind=active?(tableSort.dir==='asc'?' ▲':' ▼'):'';
     th.textContent=label+ind;
@@ -586,8 +638,12 @@ function renderStats(totals){
   document.getElementById('s-members').textContent=totals.members||0;
   document.getElementById('s-active').textContent=totals.activeToday||0;
   document.getElementById('s-streak').textContent=totals.avgStreak||0;
-  document.getElementById('s-missed').textContent=totals.missedLast7||0;
   document.getElementById('s-pro').textContent=totals.proMembers||0;
+  var atRisk=(allUsers||[]).filter(function(u){return u.atRisk&&(u.streak||0)>0;}).length;
+  var pending=(allUsers||[]).filter(function(u){return u.tier==='pro'&&u.incomePending&&!u.incomeVerified;}).length;
+  var arEl=document.getElementById('s-atrisk'),pEl=document.getElementById('s-pending');
+  if(arEl){arEl.textContent=atRisk;arEl.style.color=atRisk>0?'var(--warn)':'';}
+  if(pEl){pEl.textContent=pending;pEl.style.color=pending>0?'var(--gold)':'';}
 }
 
 function updateBulkUi(){
@@ -608,7 +664,7 @@ function renderUsers(){
   var rows=sortUsers(filteredUsers());
   var body=document.getElementById('users-body');
   if(!rows.length){
-    body.innerHTML='<tr><td colspan="10" class="status">No members match your filters yet.</td></tr>';
+    body.innerHTML='<tr><td colspan="12" class="status">No members match your filters yet.</td></tr>';
     updateBulkUi();
     updateSortHeaders();
     return;
@@ -619,14 +675,16 @@ function renderUsers(){
     var checked=selectedForDelete[u.userId]?' checked':'';
     return '<tr data-user="'+esc(u.userId)+'"'+active+sel+'>'
       +'<td class="chk-col" onclick="event.stopPropagation()"><input type="checkbox" class="user-chk" data-user="'+esc(u.userId)+'"'+checked+'/></td>'
-      +'<td><strong>'+esc(u.username)+'</strong><div style="font-size:11px;color:var(--text3);">'+esc(u.userId)+'</div></td>'
-      +'<td><span class="pill '+u.tier+'">'+esc(u.tier==='pro'?'Pro':'Basic')+'</span></td>'
-      +'<td>'+u.streak+'</td>'
-      +'<td class="due-col">'+fmtDueCell(u)+'</td>'
-      +'<td>'+fmtDate(u.lastEntryDate)+'</td>'
-      +'<td>'+u.missedLast7+'</td>'
-      +'<td>'+u.totalEntries+'</td>'
-      +'<td>'+fmtMoney(u.incomeAllTime!=null?u.incomeAllTime:0)+'</td>'
+      +'<td class="member-col"><strong class="rank-name" style="'+rankNameStyle(u)+'">'+esc(u.username)+'</strong>'+fmtRankBadge(u)+fmtPendingCue(u)+'<div style="font-size:11px;color:var(--text3);">'+esc(u.userId)+'</div></td>'
+      +'<td data-label="Tier"><span class="pill '+u.tier+'">'+esc(u.tier==='pro'?'Pro':'Basic')+'</span></td>'
+      +'<td data-label="Streak">'+fmtStreakCell(u)+'</td>'
+      +'<td class="due-col" data-label="Due">'+fmtDueCell(u)+'</td>'
+      +'<td class="strip-col" data-label="Last 14d">'+fmtDayStrip(u)+'</td>'
+      +'<td data-label="Last EOD">'+fmtRelDate(u.lastEntryDate)+'</td>'
+      +'<td data-label="Missed 7d">'+u.missedLast7+'</td>'
+      +'<td data-label="Entries">'+u.totalEntries+'</td>'
+      +'<td data-label="Income">'+fmtMoney(u.incomeAllTime!=null?u.incomeAllTime:0)+'</td>'
+      +'<td data-label="Verified">'+fmtVerifyCell(u)+'</td>'
       +'<td class="act-col"><button type="button" class="btn-row-delete" data-user="'+esc(u.userId)+'" data-name="'+esc(u.username)+'">Delete</button></td>'
       +'</tr>';
   }).join('');
@@ -649,9 +707,90 @@ function renderUsers(){
       deleteMemberData(btn.getAttribute('data-user'),btn.getAttribute('data-name'),btn);
     };
   });
+  body.querySelectorAll('.verify-cell').forEach(function(cell){
+    cell.onclick=function(e){
+      e.stopPropagation();
+      var uid=cell.getAttribute('data-user');
+      var u=allUsers.find(function(x){return x.userId===uid;});
+      if(!u)return;
+      toggleIncomeVerified(uid,!u.incomeVerified);
+    };
+  });
   updateBulkUi();
   updateSortHeaders();
 }
+
+/* ---- Rank + verification + strip helpers (items 1,5,6) ---- */
+function rankMetaFor(key){
+  if(!key)return null;
+  for(var i=0;i<RANKS.length;i++){if(RANKS[i].key===key)return RANKS[i];}
+  return null;
+}
+function rankNameStyle(u){
+  var m=rankMetaFor(u.rank);
+  var color=(m&&m.color)||u.rankColor;
+  return color?('color:'+safeColor(color)):'';
+}
+function fmtRankBadge(u){
+  if(!u.rank)return '';
+  var m=rankMetaFor(u.rank);
+  var color=safeColor((m&&m.color)||u.rankColor||'#c9b6ff');
+  var label=(m&&m.label)||u.rankLabel||u.rank;
+  var tag=u.rankTag||(m?('$'+m.threshold):'');
+  var over=u.rankOverridden?' title="Set manually by admin"':'';
+  return '<span class="rank-badge" style="color:'+esc(color)+'"'+over+'>'+esc(label)+(tag?(' · '+esc(tag)):'')+'</span>';
+}
+function fmtDayStrip(u){
+  var days=u.recentDays||[];
+  if(!days.length)return '<span style="color:var(--text3);font-size:11px;">—</span>';
+  var dots=days.map(function(d){
+    var cls='day-dot ';
+    if(!d.tracked)cls+='untracked';
+    else if(d.submitted)cls+='sub';
+    else cls+='miss';
+    if(d.date===u.recentDays[u.recentDays.length-1].date)cls+=' today';
+    return '<span class="'+cls+'" title="'+esc(d.date)+(d.submitted?' · submitted':(d.tracked?' · missed':' · before signup'))+'"></span>';
+  }).join('');
+  return '<span class="day-strip">'+dots+'</span>';
+}
+function fmtVerifyCell(u){
+  if(u.tier!=='pro')return '<span style="color:var(--text3);">—</span>';
+  var state=u.incomeVerified?'on':(u.incomePending?'pending':'off');
+  var icon=u.incomeVerified?'✅':(u.incomePending?'⏳':'⬜');
+  var tip=u.incomeVerified?'Verified — click to un-verify':(u.incomePending?'New income record pending — click to verify & broadcast':'Not verified — click to verify');
+  return '<span class="verify-cell '+state+'" data-user="'+esc(u.userId)+'" title="'+esc(tip)+'">'+icon+'</span>';
+}
+// Streak number colored by health: green when done today, orange when at risk. Always fire.
+// Tiered streak emoji (mirrors lib/streak-milestones.js): seedling → fire(30) → volcano(90) → comet(180) → statue(365).
+function streakIcon(n){
+  n=Number(n)||0;
+  if(n>=365)return '🗿';
+  if(n>=180)return '☄️';
+  if(n>=90)return '🌋';
+  if(n>=30)return '🔥';
+  return '🌱';
+}
+function fmtStreakCell(u){
+  var n=u.streak||0;
+  var color=(u.submittedToday||u.activeToday)?'var(--ok)':(n>0?'var(--warn)':'var(--text3)');
+  return '<span style="font-weight:800;color:'+color+';">'+n+'</span> <span style="font-size:12px;">'+streakIcon(n)+'</span>';
+}
+// Small pending cue next to the name so admins spot who needs verifying at a glance.
+function fmtPendingCue(u){
+  if(u.tier!=='pro'||u.incomeVerified||!u.incomePending)return '';
+  return '<span class="rank-pending" title="New income record awaiting verification">⏳ pending</span>';
+}
+function fmtRelDate(ds){
+  if(!ds)return '<span style="color:var(--text3);">—</span>';
+  var today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});
+  var diff=Math.round((new Date(today+'T12:00:00')-new Date(ds+'T12:00:00'))/86400000);
+  if(diff<=0)return 'Today';
+  if(diff===1)return 'Yesterday';
+  if(diff<=13)return diff+' days ago';
+  return fmtDate(ds);
+}
+// Guard for color in inline style (avoid injection); ranks come from server.
+function safeColor(c){return /^#[0-9a-fA-F]{3,8}$/.test(String(c||''))?c:'#c9b6ff';}
 
 function openReflectionModal(dateLabel,text){
   var ex=document.getElementById('reflection-view-modal');if(ex)ex.remove();
@@ -900,6 +1039,56 @@ async function saveUserTier(userId,tier){
   }
 }
 
+function shortMoneyClient(n){
+  var v=Number(n||0);
+  if(v>=1000000)return '$'+(v/1000000).toString().replace(/\.0$/,'')+'M';
+  if(v>=1000)return '$'+(v/1000).toString().replace(/\.0$/,'')+'K';
+  return '$'+v;
+}
+function rankOptions(current){
+  var opts='<option value="">— No rank —</option>';
+  RANKS.forEach(function(r){
+    opts+='<option value="'+esc(r.key)+'"'+(r.key===current?' selected':'')+'>'+esc(r.label)+' ('+shortMoneyClient(r.threshold)+'/mo)</option>';
+  });
+  return opts;
+}
+function updateVerifyDetail(summary,broadcasts){
+  var st=document.getElementById('verify-status');
+  if(st){
+    if(broadcasts&&broadcasts.length)st.textContent='Verified — broadcast: '+broadcasts.map(function(b){return b.label;}).join(', ');
+    else st.textContent=summary&&summary.incomeVerified?'Marked verified.':'Held (un-verified).';
+    st.style.color='var(--success)';
+  }
+  var chk=document.getElementById('verify-check');
+  if(chk&&summary)chk.checked=!!summary.incomeVerified;
+}
+async function toggleIncomeVerified(userId,checked){
+  if(verifySaveInFlight[userId])return;
+  verifySaveInFlight[userId]=true;
+  try{
+    var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
+      method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:userId,incomeVerified:checked})
+    });
+    var parsed=await readJsonResponse(res);
+    if(!parsed.ok)throw new Error((parsed.data&&parsed.data.error)||'Failed to update verification');
+    if(parsed.data.summary)patchUserInList(parsed.data.summary);
+    if(selectedUserId===userId)updateVerifyDetail(parsed.data.summary,parsed.data.broadcasts);
+  }catch(err){showError(err.message);}
+  finally{verifySaveInFlight[userId]=false;}
+}
+async function saveRankOverride(userId,rank){
+  try{
+    var res=await apiFetch('/api/admin/user'+adminApiQuery('userId='+encodeURIComponent(userId)),{
+      method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:userId,rankOverride:rank||null})
+    });
+    var parsed=await readJsonResponse(res);
+    if(!parsed.ok)throw new Error((parsed.data&&parsed.data.error)||'Failed to set rank');
+    if(parsed.data.summary)patchUserInList(parsed.data.summary);
+  }catch(err){showError(err.message);}
+}
+
 async function loadUserDetail(userId){
   selectedUserId=userId;
   renderUsers();
@@ -922,6 +1111,15 @@ async function loadUserDetail(userId){
       +'<p class="tier-note">'+(data.onProList?'This member is on the Pro list — they get income tracking and multiple action/KPI pairs.':'Not on the Pro list — Basic features only.')+'</p>'
       +'<p class="tier-status" id="tier-status"></p>'
       +'</div>'
+      +(s.tier==='pro'?(
+        '<div class="tier-controls">'
+        +'<label>Income &amp; rank</label>'
+        +'<div class="verify-toggle"><input type="checkbox" id="verify-check"'+(s.incomeVerified?' checked':'')+'/> <span>Income verified'+(s.incomePending?' — <b style="color:var(--gold)">new record pending</b>':'')+'</span></div>'
+        +'<div class="tier-row" style="margin-top:12px;"><select id="rank-select">'+rankOptions(s.rank)+'</select><button class="btn-primary" id="rank-save-btn">Set rank</button></div>'
+        +'<p class="tier-note">Ticking <b>Income verified</b> broadcasts any pending income record and grants the rank. Reaching a new record resets this and holds again. <b>Set rank</b> is a manual override.</p>'
+        +'<p class="tier-status" id="verify-status"></p>'
+        +'</div>'
+      ):'')
       +'<div class="detail-grid">'
       +'<div class="detail-item"><span>Current tier</span><strong>'+(s.tier==='pro'?'Pro':'Basic')+'</strong></div>'
       +'<div class="detail-item"><span>Pro list</span><strong>'+(data.onProList?'Yes':'No')+'</strong></div>'
@@ -930,8 +1128,9 @@ async function loadUserDetail(userId){
       +'<div class="detail-item"><span>Total entries</span><strong>'+s.totalEntries+'</strong></div>'
       +'<div class="detail-item"><span>Missed (7d)</span><strong>'+s.missedLast7+'</strong></div>'
       +'<div class="detail-item"><span>Last EOD</span><strong>'+fmtDate(s.lastEntryDate)+'</strong></div>'
-      +'<div class="detail-item"><span>Income (30d)</span><strong>'+fmtMoney(s.incomeLast30)+'</strong></div>'
+      +'<div class="detail-item"><span>Income (MTD)</span><strong>'+fmtMoney(s.incomeThisMonth!=null?s.incomeThisMonth:0)+'</strong></div>'
       +'<div class="detail-item"><span>Income (all time)</span><strong>'+fmtMoney(s.incomeAllTime!=null?s.incomeAllTime:0)+'</strong></div>'
+      +'<div class="detail-item"><span>Rank</span><strong>'+(s.rankLabel?('<span style="color:'+safeColor(s.rankColor)+'">'+esc(s.rankLabel)+'</span>'+(s.rankTag?(' · '+esc(s.rankTag)):'')):'—')+'</strong></div>'
       +'</div>'
       +'<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Recent EOD history</p>'
       +'<div class="history-mini">'+renderUserHistory(data.entries,s.tier==='pro')+'</div>'
@@ -945,6 +1144,16 @@ async function loadUserDetail(userId){
       saveUserTier(userId,document.getElementById('tier-select').value).catch(function(err){
         var el=document.getElementById('tier-status');
         el.textContent=err.message;el.style.color='var(--danger)';
+      });
+    };
+    var verifyChk=document.getElementById('verify-check');
+    if(verifyChk)verifyChk.onchange=function(){toggleIncomeVerified(userId,verifyChk.checked);};
+    var rankBtn=document.getElementById('rank-save-btn');
+    if(rankBtn)rankBtn.onclick=function(){
+      var st=document.getElementById('verify-status');
+      if(st){st.textContent='Saving rank…';st.style.color='var(--text2)';}
+      saveRankOverride(userId,document.getElementById('rank-select').value).then(function(){
+        if(st){st.textContent='Rank updated.';st.style.color='var(--success)';}
       });
     };
     document.getElementById('member-delete-btn').onclick=function(){
@@ -976,6 +1185,7 @@ async function loadDashboard(opts){
     }
     setAdminUserLine(data.adminUser,{trackerPath:data.trackerPath});
     allUsers=data.users||[];
+    if(Array.isArray(data.ranks)&&data.ranks.length)RANKS=data.ranks;
     renderStats(data.totals||{});
     renderUsers();
     if(data.storageMode==='memory'){
@@ -993,7 +1203,7 @@ async function loadDashboard(opts){
     }
   }catch(err){
     if(!isWhopAuthError(err.message))showError(err.message+(isLocalDev()?' — use Whop dev proxy or set DEV_ADMIN=1 on the server':''));
-    if(!isWhopAuthError(err.message))document.getElementById('users-body').innerHTML='<tr><td colspan="9" class="status error">'+esc(err.message)+'</td></tr>';
+    if(!isWhopAuthError(err.message))document.getElementById('users-body').innerHTML='<tr><td colspan="12" class="status error">'+esc(err.message)+'</td></tr>';
   }finally{
     dashboardBusy=false;
     if(wrap)wrap.classList.remove('refreshing');

@@ -129,14 +129,18 @@ body{
   .topbar{flex-wrap:wrap;}
 }
 .streak-badge{
-  display:flex;align-items:center;gap:7px;
-  background:var(--gold);
-  border-radius:999px;padding:5px 16px;
-  box-shadow:0 2px 12px rgba(245,200,66,0.3);
+  display:flex;align-items:center;gap:9px;
+  background:transparent;border-radius:999px;padding:2px 4px;box-shadow:none;
 }
-.streak-num{font-size:14px;font-weight:700;color:#1a1030;}
-.streak-lbl{font-size:13px;font-weight:600;color:#1a1030;}
-.streak-emoji{font-size:14px;line-height:1;margin-left:2px;}
+/* Fire lives in its own chip so the symbol reads separately from the day count */
+.streak-emoji{
+  font-size:15px;line-height:1;width:30px;height:30px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,138,61,0.14);border:1px solid rgba(255,138,61,0.32);border-radius:50%;
+}
+.streak-val{display:flex;flex-direction:column;line-height:1.05;}
+.streak-num{font-size:22px;font-weight:800;color:#ff8a3d;line-height:1;letter-spacing:-0.02em;}
+.streak-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;}
 .streak-milestone-hint{
   font-size:10px;color:var(--text3);margin-top:2px;max-width:140px;line-height:1.3;text-align:right;
 }
@@ -709,9 +713,8 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <span class="tier-badge basic" id="tier-badge">Basic</span>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
   <div class="streak-badge" id="streak-badge-wrap" title="Consecutive Central Time days you've opened the app">
-    <span class="streak-emoji" id="streak-emoji" aria-hidden="true">✨</span>
-    <span class="streak-num" id="streak-count">0</span>
-    <span class="streak-lbl">Day streak</span>
+    <span class="streak-emoji" id="streak-emoji" aria-hidden="true">🌱</span>
+    <span class="streak-val"><span class="streak-num" id="streak-count">0</span><span class="streak-lbl">day streak</span></span>
   </div>
   <div class="streak-milestone-hint" id="streak-next-hint"></div>
   </div>
@@ -741,6 +744,10 @@ button:hover{border-color:var(--gold);color:var(--gold);}
   <p class="set-desc">Name each income stream that appears on the form. (Up to 3 total) <span style="color:var(--gold);">Pro only</span></p>
   <div id="settings-streams-list"></div>
   <div id="settings-add-stream-row"></div>
+  <hr class="set-divider"/>
+  <p class="set-title">Income record broadcasts</p>
+  <p class="set-desc">Monthly income records are always announced in accountability chat once an admin verifies them. Total (all-time) income milestones are optional.</p>
+  <label class="settings-check"><input type="checkbox" id="settings-broadcast-income"/> Broadcast my total income milestones ($1K → $100M)</label>
   </div>
 </div>
 
@@ -984,10 +991,13 @@ function applyServerSettings(serverSettings){
   }
   if(serverSettings.streakNotifications!==undefined)s.streakNotifications=!!serverSettings.streakNotifications;
   else if(s.streakNotifications===undefined)s.streakNotifications=true;
+  if(serverSettings.broadcastIncomeMilestones!==undefined)s.broadcastIncomeMilestones=!!serverSettings.broadcastIncomeMilestones;
   s.pairCount=pairCount;s.incomeStreams=incomeStreams;
   LS.set(SETTINGS_KEY,s);
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
   if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
+  var broadcastEl=document.getElementById('settings-broadcast-income');
+  if(broadcastEl)broadcastEl.checked=!!s.broadcastIncomeMilestones;
 }
 
 async function pullFromServer(){
@@ -1205,12 +1215,28 @@ function optKey(i){return'eod_opts_'+i;}
 function getOpts(t,i){return optionLists[t+'_'+i]||[];}
 function setOpts(t,i,l){optionLists[t+'_'+i]=l;}
 function saveOpts(i){LS.set(optKey(i),{action:getOpts('action',i),kpi:getOpts('kpi',i)});}
-function normOpts(list){return(list||[]).map(function(o){return typeof o==='string'?{name:o,target:null}:o;});}
+var ADLIB_VERBS=['were completed','happened','was reached','were reached','occurred'];
+function defaultVerb(type){return type==='action'?'were completed':'happened';}
+function normOpts(list){return(list||[]).map(function(o){
+  if(typeof o==='string')return{name:o,target:null,verb:null,plural:false};
+  return{name:o.name,target:o.target!=null?o.target:null,verb:o.verb||null,plural:!!o.plural};
+});}
 function optNames(list){return normOpts(list).map(function(o){return o.name;});}
 function getTargetForName(type,i,name){
   var list=normOpts(getOpts(type,i));
   var found=list.filter(function(o){return o.name===name;});
   return found.length?found[0].target:null;
+}
+function getOptMeta(type,i,name){
+  var list=normOpts(getOpts(type,i));
+  var f=list.filter(function(o){return o.name===name;});
+  return f.length?f[0]:null;
+}
+var LAST_SEL_KEY='eod_last_sel';
+function getLastSel(type,i){var m=LS.get(LAST_SEL_KEY)||{};return m[type+'_'+i]||null;}
+function setLastSel(type,i,name){
+  if(!name||name===ADD_NEW)return;
+  var m=LS.get(LAST_SEL_KEY)||{};m[type+'_'+i]=name;LS.set(LAST_SEL_KEY,m);
 }
 function loadAllOpts(){
   for(var i=0;i<3;i++){
@@ -1222,10 +1248,12 @@ function loadAllOpts(){
 
 function saveSettings(){
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  var broadcastEl=document.getElementById('settings-broadcast-income');
   LS.set(SETTINGS_KEY,{
     pairCount:pairCount,
     incomeStreams:incomeStreams,
-    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:true
+    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:true,
+    broadcastIncomeMilestones:broadcastEl?!!broadcastEl.checked:false
   });
 }
 function syncSettingsToServer(){
@@ -1235,10 +1263,12 @@ function syncSettingsToServer(){
 function getSettingsPayload(){
   var s=LS.get(SETTINGS_KEY)||{};
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
+  var broadcastEl=document.getElementById('settings-broadcast-income');
   return{
     pairCount:pairCount,
     incomeStreams:incomeStreams,
-    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:(s.streakNotifications!==false)
+    streakNotifications:streakNotifsEl?!!streakNotifsEl.checked:(s.streakNotifications!==false),
+    broadcastIncomeMilestones:broadcastEl?!!broadcastEl.checked:!!s.broadcastIncomeMilestones
   };
 }
 function loadSettings(){
@@ -1248,6 +1278,8 @@ function loadSettings(){
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
   if(s.streakNotifications===undefined)s.streakNotifications=true;
   if(streakNotifsEl)streakNotifsEl.checked=s.streakNotifications!==false;
+  var broadcastEl=document.getElementById('settings-broadcast-income');
+  if(broadcastEl)broadcastEl.checked=!!s.broadcastIncomeMilestones;
   if(!isPro){pairCount=1;incomeStreams=[];}
   else{
     pairCount=Math.min(3,Math.max(1,pairCount));
@@ -1264,14 +1296,9 @@ function updateVisitStreakUI(asOfDate){
   var emojiEl=document.getElementById('streak-emoji');
   var hintEl=document.getElementById('streak-next-hint');
   if(countEl)countEl.textContent=streak;
+  // Emoji grows with the streak: seedling → fire(30) → volcano(90) → comet(180) → statue(365).
   if(emojiEl)emojiEl.textContent=EodStreak.streakEmoji(streak);
-  if(hintEl){
-    if(!streak){hintEl.textContent='Open the app daily (Central Time) to build your streak';}
-    else{
-      var next=EodStreak.getNextStreakMilestone(streak);
-      hintEl.textContent=next?(next.days-streak)+' to '+next.emoji+' '+next.days:'Top tier 🌌';
-    }
-  }
+  if(hintEl)hintEl.textContent='';
   return streak;
 }
 function updateSubmissionStreakUI(asOfDate){return updateVisitStreakUI(asOfDate);}
@@ -1426,15 +1453,17 @@ function updateHint(type,i,selName){
 function bindPair(i){
   var aS=gc('f-action-select',i),aNR=gc('f-action-new-row',i),aN=gc('f-action-new',i),aE=gc('f-action-edit-btn',i),aC=gc('f-action-create-btn',i),aSt=gc('f-action-status',i);
   var kS=gc('f-kpi-select',i),kNR=gc('f-kpi-new-row',i),kN=gc('f-kpi-new',i),kE=gc('f-kpi-edit-btn',i),kC=gc('f-kpi-create-btn',i),kSt=gc('f-kpi-status',i);
-  renderSel(aS,aNR,aE,getOpts('action',i),null);
-  renderSel(kS,kNR,kE,getOpts('kpi',i),null);
+  renderSel(aS,aNR,aE,getOpts('action',i),getLastSel('action',i));
+  renderSel(kS,kNR,kE,getOpts('kpi',i),getLastSel('kpi',i));
   aS.onchange=function(){
     applyVis(aS,aNR,aE);
     updateHint('action',i,aS.value);
+    setLastSel('action',i,aS.value);
   };
   kS.onchange=function(){
     applyVis(kS,kNR,kE);
     updateHint('kpi',i,kS.value);
+    setLastSel('kpi',i,kS.value);
   };
   aE.onclick=function(){openEditModal('action',i,aS,aNR,aE);};
   kE.onclick=function(){openEditModal('kpi',i,kS,kNR,kE);};
@@ -1459,7 +1488,8 @@ function renderSel(sel,newRow,editBtn,list,selected){
   sel.innerHTML=list.map(function(o){return'<option value="'+escA(o.name)+'">'+escH(o.name)+'</option>';}).join('')+addOpt;
   sel.style.display='';
   var names=list.map(function(o){return o.name;});
-  sel.value=(selected&&names.includes(selected))?selected:list[list.length-1].name;
+  // Restore the member's last-used option; fall back to the first, not the last.
+  sel.value=(selected&&names.includes(selected))?selected:list[0].name;
   applyVis(sel,newRow,editBtn);
 }
 
@@ -1503,7 +1533,7 @@ function openEditModal(type,i,sel,newRow,editBtn){
 
   var sub=document.createElement('p');
   sub.className='modal-sub';
-  sub.textContent='Rename each option and optionally set a daily target.';
+  sub.textContent='Rename each option, set a daily target, and choose how it reads in the accountability chat.';
   box.appendChild(sub);
 
   list.forEach(function(opt,idx){
@@ -1530,7 +1560,31 @@ function openEditModal(type,i,sel,newRow,editBtn){
     ti.type='number';ti.min='0';ti.step='1';ti.placeholder='e.g. 10';
     ti.value=opt.target!=null?String(opt.target):'';ti.dataset.idx=String(idx);
     ti.className='modal-field modal-target-inp';
+    ti.style.marginBottom='10px';
     wrap.appendChild(ti);
+
+    var vl=document.createElement('span');
+    vl.className='flabel';
+    vl.textContent='Chat wording (e.g. "5 '+(opt.name||label)+' '+(opt.verb||defaultVerb(type))+'")';
+    wrap.appendChild(vl);
+
+    var vs=document.createElement('select');
+    vs.className='modal-field modal-verb-inp';vs.dataset.idx=String(idx);
+    vs.style.marginBottom='10px';
+    var chosen=opt.verb||defaultVerb(type);
+    ADLIB_VERBS.forEach(function(v){
+      var o=document.createElement('option');o.value=v;o.textContent=v;if(v===chosen)o.selected=true;vs.appendChild(o);
+    });
+    wrap.appendChild(vs);
+
+    var pl=document.createElement('label');
+    pl.className='settings-check';pl.style.fontSize='12px';
+    var pc=document.createElement('input');
+    pc.type='checkbox';pc.className='modal-plural-inp';pc.dataset.idx=String(idx);pc.checked=!!opt.plural;
+    pl.appendChild(pc);
+    pl.appendChild(document.createTextNode(' Add "(s)" to the name when the count isn\'t 1'));
+    wrap.appendChild(pl);
+
     box.appendChild(wrap);
   });
 
@@ -1547,12 +1601,16 @@ function openEditModal(type,i,sel,newRow,editBtn){
   saveBtn.onclick=function(){
     var nameInputs=box.querySelectorAll('.modal-name-inp');
     var tgtInputs=box.querySelectorAll('.modal-target-inp');
+    var verbInputs=box.querySelectorAll('.modal-verb-inp');
+    var pluralInputs=box.querySelectorAll('.modal-plural-inp');
     var newList=[];var seen=new Set();var conflict=false;
     nameInputs.forEach(function(ni,j){
       var n=ni.value.trim()||ni.dataset.original;
       var t=tgtInputs[j].value!==''?Number(tgtInputs[j].value):null;
+      var verb=verbInputs[j]?verbInputs[j].value:defaultVerb(type);
+      var plural=pluralInputs[j]?!!pluralInputs[j].checked:false;
       if(seen.has(n))conflict=true;seen.add(n);
-      newList.push({name:n,target:t});
+      newList.push({name:n,target:t,verb:verb,plural:plural});
     });
     if(conflict){alert('Each name must be unique.');return;}
     var currentVal=sel.value;
@@ -1890,13 +1948,21 @@ async function submitEntry(){
     var lbl=pairCount===1?'action':ORDINALS[i]+' action';
     if(!f.action){statusEl.textContent="Please name today's "+lbl+'.';statusEl.style.color='var(--danger)';return;}
     if(!f.kpi){statusEl.textContent='Please name the '+(pairCount===1?'':ORDINALS[i]+' ')+'KPI.';statusEl.style.color='var(--danger)';return;}
+    var aMeta=getOptMeta('action',i,f.action);
+    var kMeta=getOptMeta('kpi',i,f.kpi);
+    setLastSel('action',i,f.action);
+    setLastSel('kpi',i,f.kpi);
     pairs.push({
       action:f.action,
       actionCount:els.aCount&&els.aCount.value!==''?Number(els.aCount.value):0,
       actionTarget:getTargetForName('action',i,f.action),
+      actionVerb:(aMeta&&aMeta.verb)||defaultVerb('action'),
+      actionPlural:!!(aMeta&&aMeta.plural),
       kpi:f.kpi,
       kpiCount:els.kCount&&els.kCount.value!==''?Number(els.kCount.value):0,
-      kpiTarget:getTargetForName('kpi',i,f.kpi)
+      kpiTarget:getTargetForName('kpi',i,f.kpi),
+      kpiVerb:(kMeta&&kMeta.verb)||defaultVerb('kpi'),
+      kpiPlural:!!(kMeta&&kMeta.plural)
     });
   }
   submitReplacePending=null;
@@ -2727,6 +2793,13 @@ async function init(){
   var streakNotifsEl=document.getElementById('settings-streak-notifs');
   if(streakNotifsEl){
     streakNotifsEl.onchange=function(){
+      saveSettings();
+      syncToServer({settings:getSettingsPayload()});
+    };
+  }
+  var broadcastIncomeEl=document.getElementById('settings-broadcast-income');
+  if(broadcastIncomeEl){
+    broadcastIncomeEl.onchange=function(){
       saveSettings();
       syncToServer({settings:getSettingsPayload()});
     };

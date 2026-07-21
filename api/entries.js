@@ -1,14 +1,14 @@
 const { getUserFromRequest } = require('../lib/auth');
-const { getUserRecord, updateUser, readStore, storageMode, claimStreakMilestoneNotification } = require('../lib/store');
+const { getUserRecord, updateUser, readStore, storageMode } = require('../lib/store');
 const { clampSettingsForTier, stripEntryForTier, isProTier } = require('../lib/tiers');
 const { resolveTierFromContext } = require('../lib/tier-resolve');
 const { parseJsonBody } = require('../lib/parse-body');
 const { resolveMemberContext } = require('../lib/company-resolve');
 const { requireBusinessAccess } = require('../lib/business-access');
 const { syncWhopUsername } = require('../lib/whop-username-sync');
-const { publishEodToChannel, publishVisitStreakMilestone } = require('../lib/eod-channel-publish');
-const { calcStreak, todayStr } = require('../lib/analytics');
-const { getStreakMilestone, milestoneNotifyKey } = require('../lib/streak-milestones');
+const { publishEodToChannel } = require('../lib/eod-channel-publish');
+const { calcStreak } = require('../lib/analytics');
+const { detectOnSubmit, displayRank } = require('../lib/income-verify');
 
 module.exports = async function handler(req, res) {
   try {
@@ -116,42 +116,29 @@ module.exports = async function handler(req, res) {
         patch.options = options;
       }
 
+      // Income records (total/monthly milestones + rank). A new record marks the
+      // member "pending" and forces incomeVerified = false — nothing is broadcast
+      // and no rank is granted until an admin verifies (see api/admin/user.js).
+      const incomeSettings = patch.settings || existing.settings || {};
+      if (date && entry && isProTier(resolvedTier)) {
+        const detection = detectOnSubmit(existing, {
+          entries: merged,
+          date,
+          broadcastTotalMilestones: !!incomeSettings.broadcastIncomeMilestones,
+        });
+        if (detection.changed) {
+          Object.assign(patch, detection.patch);
+        }
+      }
+
       const updated = await updateUser(companyId, user.userId, patch);
       const entryCount = Object.keys(updated.entries || {}).length;
       const streakNotifications = updated.settings?.streakNotifications !== false;
       const visitStreak = calcStreak(updated.visits || []);
 
+      // The separate streak-milestone chat post was removed (manager request):
+      // the streak now lives inline in the daily EOD message with a tiered emoji.
       let channel = null;
-      let visitMilestone = null;
-
-      const today = todayStr();
-      const hadTodayBefore = (existing.visits || []).includes(today);
-      const hasTodayAfter = (updated.visits || []).includes(today);
-      const firstVisitToday = !hadTodayBefore && hasTodayAfter;
-      const milestone = firstVisitToday && streakNotifications ? getStreakMilestone(visitStreak) : null;
-      const notifyKey = milestoneNotifyKey(milestone, today);
-      const existingNotifyKeys = existing.streakMilestoneNotifiedKeys || [];
-
-      if (firstVisitToday && streakNotifications && milestone) {
-        if (notifyKey && existingNotifyKeys.includes(notifyKey)) {
-          visitMilestone = { skipped: true, reason: 'already_notified', streak: visitStreak, milestone };
-        } else {
-          const claimed = await claimStreakMilestoneNotification(
-            companyId,
-            user.userId,
-            notifyKey,
-          );
-          if (claimed) {
-            visitMilestone = await publishVisitStreakMilestone({
-              username: resolvedUsername,
-              visits: updated.visits,
-              streakNotifications,
-            });
-          } else {
-            visitMilestone = { skipped: true, reason: 'already_notified', streak: visitStreak, milestone };
-          }
-        }
-      }
 
       if (date && merged[date]?.publish) {
         channel = await publishEodToChannel({
@@ -162,6 +149,7 @@ module.exports = async function handler(req, res) {
           isPro: isProTier(resolvedTier),
           previousEntry,
           visits: updated.visits,
+          rank: displayRank(updated),
           streakNotifications,
         });
       }
@@ -175,7 +163,6 @@ module.exports = async function handler(req, res) {
         deletedDates: removedDates.length ? removedDates : undefined,
         storageMode: storageMode(),
         visitStreak,
-        visitMilestone,
         channel,
       });
       return;

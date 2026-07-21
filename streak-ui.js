@@ -77,14 +77,12 @@
   }
 
   function streakEmoji(streak) {
-    var hit = getStreakMilestone(streak);
-    if (hit) return hit.emoji;
     var n = Number(streak) || 0;
-    if (n >= 100) return '💯';
+    if (n >= 365) return '🗿';
+    if (n >= 180) return '☄️';
+    if (n >= 90) return '🌋';
     if (n >= 30) return '🔥';
-    if (n >= 7) return '⚡';
-    if (n >= 3) return '🌱';
-    return '✨';
+    return '🌱';
   }
 
   global.EodStreak = {

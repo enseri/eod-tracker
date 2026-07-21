@@ -133,21 +133,22 @@
     return (
       '<div class="history-day-preview">' +
       '<div class="history-preview-bars" title="' +
-      escH(kTip + ' · ' + aTip) +
+      escH(aTip + ' · ' + kTip) +
       '">' +
-      '<div class="history-bar-col history-bar-col--kpi">' +
-      '<div class="history-bar-track"><div class="history-bar-fill history-bar-fill--kpi" style="width:' +
-      barPct(kCount, kTarget) +
-      '%"></div></div>' +
-      '<span class="history-bar-val">' +
-      escH(kDisp) +
-      '</span></div>' +
+      // Action bar on the LEFT, KPI bar on the RIGHT (per manager request).
       '<div class="history-bar-col history-bar-col--action">' +
       '<div class="history-bar-track"><div class="history-bar-fill history-bar-fill--action" style="width:' +
       barPct(aCount, aTarget) +
       '%"></div></div>' +
       '<span class="history-bar-val">' +
       escH(aDisp) +
+      '</span></div>' +
+      '<div class="history-bar-col history-bar-col--kpi">' +
+      '<div class="history-bar-track"><div class="history-bar-fill history-bar-fill--kpi" style="width:' +
+      barPct(kCount, kTarget) +
+      '%"></div></div>' +
+      '<span class="history-bar-val">' +
+      escH(kDisp) +
       '</span></div>' +
       '</div>' +
       '<div class="history-preview-footer">' +

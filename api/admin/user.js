@@ -1,9 +1,21 @@
 const { getAdminFromRequest } = require('../../lib/auth');
-const { setAdminTier, deleteUser, readStore } = require('../../lib/store');
+const { setAdminTier, deleteUser, readStore, updateUser } = require('../../lib/store');
 const { summarizeUser } = require('../../lib/analytics');
 const { clampSettingsForTier } = require('../../lib/tiers');
 const { parseJsonBody } = require('../../lib/parse-body');
 const { resolveWhopUsername, pickDisplayUsername } = require('../../lib/whop-username-sync');
+const { applyVerification, applyRankOverride } = require('../../lib/income-verify');
+const { publishIncomeRecords } = require('../../lib/eod-channel-publish');
+
+async function resolveDisplayName(companyId, userId, record) {
+  if (userId.startsWith('user_')) {
+    const whopName = await resolveWhopUsername(userId, companyId, {
+      storedUsername: record.username,
+    });
+    return pickDisplayUsername(userId, record.username, whopName);
+  }
+  return record.username || userId;
+}
 
 async function summaryForUser(companyId, userId, record, store) {
   let summary = summarizeUser(userId, record, store);
@@ -17,6 +29,10 @@ async function summaryForUser(companyId, userId, record, store) {
     };
   }
   return summary;
+}
+
+function truthy(v) {
+  return v === true || v === 'true' || v === 1 || v === '1';
 }
 
 module.exports = async function handler(req, res) {
@@ -41,27 +57,67 @@ module.exports = async function handler(req, res) {
     if (req.method === 'PATCH' || req.method === 'POST') {
       const body = await parseJsonBody(req);
       const targetId = userId || body?.userId;
-      const tier = body?.tier;
       if (!targetId) {
         res.status(400).json({ error: 'userId is required' });
         return;
       }
-      if (!tier) {
-        res.status(400).json({ error: 'tier is required (basic or pro)' });
+
+      const tier = body?.tier;
+      const hasIncomeVerified = Object.prototype.hasOwnProperty.call(body || {}, 'incomeVerified');
+      const hasRankOverride = Object.prototype.hasOwnProperty.call(body || {}, 'rankOverride');
+
+      if (!tier && !hasIncomeVerified && !hasRankOverride) {
+        res.status(400).json({ error: 'Provide tier, incomeVerified, or rankOverride' });
         return;
       }
 
-      const result = await setAdminTier(companyId, targetId, tier);
-      const store = result.store || { users: { [targetId]: result.user }, proUserIds: result.proUserIds };
-      const summary = await summaryForUser(companyId, targetId, result.user, store);
+      const store0 = await readStore(companyId);
+      const record0 = store0.users[targetId];
+      if (!record0) {
+        res.status(404).json({ error: 'Member not found — they need to submit an EOD first' });
+        return;
+      }
+
+      let broadcasts = [];
+      let channel = null;
+
+      if (tier) {
+        await setAdminTier(companyId, targetId, tier);
+      }
+
+      if (hasRankOverride) {
+        const { patch } = applyRankOverride(body.rankOverride);
+        await updateUser(companyId, targetId, patch);
+      }
+
+      if (hasIncomeVerified) {
+        const fresh = (await readStore(companyId)).users[targetId] || record0;
+        if (truthy(body.incomeVerified)) {
+          const username = await resolveDisplayName(companyId, targetId, fresh);
+          const result = applyVerification(fresh, { username });
+          await updateUser(companyId, targetId, result.patch);
+          broadcasts = result.broadcasts || [];
+          if (broadcasts.length) {
+            channel = await publishIncomeRecords({ username, broadcasts });
+          }
+        } else {
+          await updateUser(companyId, targetId, { incomeVerified: false });
+        }
+      }
+
+      const store = await readStore(companyId);
+      const record = store.users[targetId] || record0;
+      const summary = await summaryForUser(companyId, targetId, record, store);
 
       res.status(200).json({
         ok: true,
-        tier,
+        tier: tier || summary.tier,
         companyId,
         onProList: summary.tier === 'pro',
-        proUserIds: result.proUserIds,
+        proUserIds: store.proUserIds || [],
         summary,
+        broadcasts: broadcasts.map((b) => ({ type: b.type, label: b.label })),
+        channel,
       });
       return;
     }
