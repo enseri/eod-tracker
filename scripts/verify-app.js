@@ -92,7 +92,7 @@ const ranked = formatEodChannelMessage({
   entry: { pairs: [{ action: 'Call', actionCount: 1 }], publish: false },
   date: '2025-06-27', username: 'tester', isPro: true, rank: 'earner',
 });
-assert.ok(ranked.includes('[Earner · $10K/mo]'), 'inline rank tag in EOD post');
+assert.ok(ranked.includes('[Earner · $500/mo]'), 'inline rank tag in EOD post');
 
 assert.equal(milestoneNotifyKey(getStreakMilestone(1), '2026-06-25'), '1@2026-06-25', 'milestone notify key');
 
@@ -112,21 +112,21 @@ assert.ok(pbs.some((r) => r.type === 'action'), 'override PB detects action reco
 const thisMonth = T.slice(0, 7);
 const lastMonth = prevMonth(thisMonth);
 const rankEntries = {
-  [`${lastMonth}-15`]: { incomeStreams: [{ income: 12000 }] },
-  [`${thisMonth}-10`]: { incomeStreams: [{ income: 11000 }] },
+  [`${lastMonth}-15`]: { incomeStreams: [{ income: 600 }] },
+  [`${thisMonth}-10`]: { incomeStreams: [{ income: 600 }] },
 };
-assert.equal(qualifiedRank(rankEntries, thisMonth), 'earner', 'two months >= $10k earns Earner');
-assert.equal(sumMonthlyIncome(rankEntries, thisMonth), 11000, 'MTD income sum');
-assert.equal(qualifiedRank({ [`${thisMonth}-10`]: { incomeStreams: [{ income: 60000 }] } }, thisMonth), null, 'one month = no rank yet');
-assert.equal(rankTag('earner'), '$10K/mo', 'rank tag label');
+assert.equal(qualifiedRank(rankEntries, thisMonth), 'earner', 'two months >= $500 earns Earner');
+assert.equal(sumMonthlyIncome(rankEntries, thisMonth), 600, 'MTD income sum');
+assert.equal(qualifiedRank({ [`${thisMonth}-10`]: { incomeStreams: [{ income: 6000 }] } }, thisMonth), null, 'one month = no rank yet');
+assert.equal(rankTag('earner'), '$500/mo', 'rank tag label');
 assert.equal(higherRank('earner', 'starter'), 'earner', 'higherRank picks top tier');
 
 const detNoOptIn = detectIncomeRecords({ entries: rankEntries, date: `${thisMonth}-10`, granted: {}, broadcastTotalMilestones: false });
 assert.equal(detNoOptIn.rank, 'earner', 'detect rank record');
-assert.equal(detNoOptIn.monthlyMilestone, 10000, 'detect monthly milestone');
+assert.equal(detNoOptIn.monthlyMilestone, 500, 'detect monthly milestone');
 assert.equal(detNoOptIn.totalMilestone, null, 'total milestone suppressed when not opted in');
 const detOptIn = detectIncomeRecords({ entries: rankEntries, date: `${thisMonth}-10`, granted: {}, broadcastTotalMilestones: true });
-assert.equal(detOptIn.totalMilestone, 10000, 'total milestone when opted in (all-time $23k → $10k)');
+assert.equal(detOptIn.totalMilestone, 1000, 'total milestone when opted in (all-time $1.2k -> $1k)');
 
 // --- Income verification gate (items 6,7) -----------------------------------
 const d1 = detectOnSubmit({}, { entries: rankEntries, date: `${thisMonth}-10`, broadcastTotalMilestones: true });
@@ -146,7 +146,7 @@ assert.equal(displayRank(grantedRec), 'earner', 'display rank after grant');
 const d2 = detectOnSubmit(grantedRec, { entries: rankEntries, date: `${thisMonth}-10`, broadcastTotalMilestones: true });
 assert.equal(d2.changed, false, 'no new record once granted');
 assert.equal(displayRank({ incomeGrantedRank: 'earner', incomeRankOverride: 'mogul' }), 'mogul', 'override wins');
-assert.equal(incomeSummary(grantedRec).rankTag, '$10K/mo', 'income summary tag');
+assert.equal(incomeSummary(grantedRec).rankTag, '$500/mo', 'income summary tag');
 
 const settings = clampSettingsForTier({ pairCount: 2 }, 'basic');
 assert.equal(settings.streakNotifications, true, 'streak notifications default on');

@@ -74,45 +74,45 @@ const lena = {
   settings: basicSettings(), options: {}, createdAt: new Date().toISOString(),
 };
 
-// marcus — Pro, 35-day streak (🔥), verified Mogul.
+// marcus — Pro, 35-day streak (🔥), verified Mogul ($2K/mo).
 const marcus = {
   tier: 'pro', adminTier: 'pro', username: 'marcus_scale',
   visits: visitRun(35),
-  entries: fillEntries(14, () => entry([pair('Outreach', 80, 80, 'Demos', 5, 4)], [{ name: 'Programs', sales: 5, income: 30000 }], 'Scaling.')),
+  entries: fillEntries(14, () => entry([pair('Outreach', 80, 80, 'Demos', 5, 4)], [{ name: 'Programs', sales: 2, income: 150 }], 'Scaling.')),
   settings: proSettings(), options: {},
-  incomeVerified: true, incomeGrantedRank: 'mogul', incomeGrantedMonthlyMilestone: 100000, incomeGrantedTotalMilestone: 100000,
+  incomeVerified: true, incomeGrantedRank: 'mogul', incomeGrantedMonthlyMilestone: 2000, incomeGrantedTotalMilestone: 25000,
   createdAt: new Date().toISOString(),
 };
 
-// aisha — Pro, 95-day streak (🌋), 2 months of $10K+ → Earner PENDING verification.
-const aishaEntries = fillEntries(6, () => entry([pair('Cold calls', 40, 50, 'Booked calls', 3, 5)], [{ name: 'Coaching', sales: 2, income: 2000 }], 'Dialing hard.'));
-aishaEntries[d(0)] = entry([pair('Cold calls', 40, 50, 'Booked calls', 3, 5)], [{ name: 'Coaching', sales: 2, income: 6000 }], 'Big close.');
-aishaEntries[`${lastMonth}-14`] = entry([pair('Cold calls', 55, 50, 'Booked calls', 6, 5)], [{ name: 'Coaching', sales: 4, income: 12000 }], 'Big month.');
+// aisha — Pro, 95-day streak (🌋), 2 months of $500+ → Earner PENDING verification.
+const aishaEntries = fillEntries(6, () => entry([pair('Cold calls', 40, 50, 'Booked calls', 3, 5)], [{ name: 'Coaching', sales: 1, income: 80 }], 'Dialing hard.'));
+aishaEntries[d(0)] = entry([pair('Cold calls', 40, 50, 'Booked calls', 3, 5)], [{ name: 'Coaching', sales: 2, income: 200 }], 'Big close.');
+aishaEntries[`${lastMonth}-14`] = entry([pair('Cold calls', 55, 50, 'Booked calls', 6, 5)], [{ name: 'Coaching', sales: 4, income: 600 }], 'Big month.');
 const aisha = {
   tier: 'pro', adminTier: 'pro', username: 'aisha_builds',
   visits: visitRun(95), entries: aishaEntries, settings: proSettings(), options: {},
   incomeVerified: false,
-  incomePending: { totalMilestone: 10000, monthlyMilestone: 10000, rank: 'earner', month: thisMonth, detectedAt: new Date().toISOString() },
+  incomePending: { totalMilestone: 1000, monthlyMilestone: 500, rank: 'earner', month: thisMonth, detectedAt: new Date().toISOString() },
   createdAt: new Date().toISOString(),
 };
 
-// ravi — Pro, 210-day streak (☄️), done today.
+// ravi — Pro, 210-day streak (☄️), done today, Heavyweight ($1K/mo).
 const ravi = {
   tier: 'pro', adminTier: 'pro', username: 'ravi_flow',
   visits: visitRun(210),
-  entries: fillEntries(14, () => entry([pair('Content posted', 3, 3, 'New leads', 12, 10)], [{ name: 'Consulting', sales: 3, income: 9000 }], 'Compounding.')),
+  entries: fillEntries(14, () => entry([pair('Content posted', 3, 3, 'New leads', 12, 10)], [{ name: 'Consulting', sales: 2, income: 80 }], 'Compounding.')),
   settings: proSettings(), options: {},
-  incomeVerified: true, incomeGrantedRank: 'closer', incomeGrantedMonthlyMilestone: 5000,
+  incomeVerified: true, incomeGrantedRank: 'heavyweight', incomeGrantedMonthlyMilestone: 1000,
   createdAt: new Date().toISOString(),
 };
 
-// nadia — Pro, 400-day streak (🗿), verified Magnate.
+// nadia — Pro, 400-day streak (🗿), verified Empire (top rank, $5K/mo).
 const nadia = {
   tier: 'pro', adminTier: 'pro', username: 'nadia_reign',
   visits: visitRun(400),
-  entries: fillEntries(14, () => entry([pair('Enterprise calls', 6, 5, 'Deals moved', 2, 2)], [{ name: 'Retainers', sales: 4, income: 90000 }], 'Empire mode.')),
+  entries: fillEntries(14, () => entry([pair('Enterprise calls', 6, 5, 'Deals moved', 2, 2)], [{ name: 'Retainers', sales: 3, income: 400 }], 'Empire mode.')),
   settings: proSettings(), options: {},
-  incomeVerified: true, incomeGrantedRank: 'magnate', incomeGrantedMonthlyMilestone: 1000000, incomeGrantedTotalMilestone: 5000000,
+  incomeVerified: true, incomeGrantedRank: 'empire', incomeGrantedMonthlyMilestone: 5000, incomeGrantedTotalMilestone: 100000,
   createdAt: new Date().toISOString(),
 };
 
